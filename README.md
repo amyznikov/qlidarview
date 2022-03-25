@@ -15,8 +15,8 @@ appropriate for testings purposes.
 
 The default calibration parameters are collected from LiDARs user manuals and VeloView .xml files.
 
-The datalink types curretly supported are only DLT_NULL=0 (* BSD loopback encapsulation *) 
-and DLT_EN10MB=1 (* Ethernet (10Mb) *)
+The datalink types curretly supported are only DLT_NULL=0 (BSD loopback encapsulation) 
+and DLT_EN10MB=1 (Ethernet (10Mb))
 
 
 The build depencencies are 
