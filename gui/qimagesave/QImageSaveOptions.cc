@@ -71,9 +71,9 @@ QImageSaveTIFFOptions::QImageSaveTIFFOptions(QWidget * parent) :
           [this](PIXEL_DEPTH v) {
           });
 
-  compression_ctl = add_combobox(
-      "TIFF Compression: ",
-      std::function<void(int)>());
+  compression_ctl = 
+      add_combobox( "TIFF Compression: ",
+          std::function<void(int)>());
 
 
   compression_ctl->addItem("NONE", COMPRESSION_NONE);
@@ -131,7 +131,8 @@ int QImageSaveTIFFOptions::tiffCompression() const
 QImageSaveJPEGOptions::QImageSaveJPEGOptions(QWidget * parent) :
     Base("QImageSaveJPEGOptions", parent)
 {
-  quality_ctl = add_numeric_box<double>("Jpeg quality",
+  quality_ctl = 
+    add_numeric_box<double>("Jpeg quality",
       [this](double v) {
       });
 
