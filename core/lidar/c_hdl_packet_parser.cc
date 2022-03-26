@@ -357,8 +357,46 @@ bool c_hdl_packet_parser::precompute_correction_tables()
 
   case HDLSensor_HDL64: {
 
-    precomuted_corrections_table_.resize(lidar_specification_.lasers.size());
+    /*
+     * Copied from vtkVelodyneLegacyPacketInterpreter.cxx
+     * */
+    static const auto HDL64EAdjustTimeStamp =
+        [](int firingDataBlockIdx, int dsrBase32, bool isDualReturnMode) -> double
+            {
+              const int dsrBase32Reversed = HDL_LASERS_PER_DATA_BLOCK - dsrBase32 - 1;
+              const int firingDataBlockReversed = HDL_DATA_BLOCKS_PER_PKT - firingDataBlockIdx - 1;
 
+              if (!isDualReturnMode) {
+                const double TimeOffsetMicroSec[4] = {2.34, 3.54, 4.74, 6.0};
+                return (std::floor(static_cast<double>(firingDataBlockReversed) / 2.0) * 48.0) +
+                    TimeOffsetMicroSec[(dsrBase32Reversed % 4)] + (dsrBase32Reversed / 4) * TimeOffsetMicroSec[3];
+              }
+              else {
+                const double TimeOffsetMicroSec[4] = {3.5, 4.7, 5.9, 7.2};
+                return (std::floor(static_cast<double>(firingDataBlockReversed) / 4.0) * 57.6) +
+                    TimeOffsetMicroSec[(dsrBase32Reversed % 4)] + (dsrBase32Reversed / 4) * TimeOffsetMicroSec[3];
+              }
+            };
+
+
+    const bool dual_mode =
+        !is_single_return_mode(return_mode_);
+
+    precomputed_timing_offsets_.resize(HDL_DATA_BLOCKS_PER_PKT + 4);
+    for( int block = 0; block < HDL_DATA_BLOCKS_PER_PKT + 4; ++block ) {
+
+      precomputed_timing_offsets_[block].resize(HDL_LASERS_PER_DATA_BLOCK);
+
+      for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
+
+        precomputed_timing_offsets_[block][K] =
+            HDL64EAdjustTimeStamp(block, K, dual_mode);
+      }
+    }
+
+
+
+    precomuted_corrections_table_.resize(lidar_specification_.lasers.size());
     for ( uint i = 0, n = lidar_specification_.lasers.size(); i < n; ++i ) {
 
       const c_hdl_lasers_table & laser =
@@ -874,27 +912,6 @@ bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
 // HDL-64E_S3.pdf
 bool c_hdl_packet_parser::parse_hdl64(const HDLDataPacket * dataPacket)
 {
-  /*
-   * Copied from vtkVelodyneLegacyPacketInterpreter.cxx
-   * */
-  static const auto HDL64EAdjustTimeStamp =
-      [](int firingDataBlockIdx, int dsrBase32, bool isDualReturnMode) -> double
-          {
-            const int dsrBase32Reversed = HDL_LASERS_PER_DATA_BLOCK - dsrBase32 - 1;
-            const int firingDataBlockReversed = HDL_DATA_BLOCKS_PER_PKT - firingDataBlockIdx - 1;
-
-            if (!isDualReturnMode) {
-              const double TimeOffsetMicroSec[4] = {2.34, 3.54, 4.74, 6.0};
-              return (std::floor(static_cast<double>(firingDataBlockReversed) / 2.0) * 48.0) +
-                  TimeOffsetMicroSec[(dsrBase32Reversed % 4)] + (dsrBase32Reversed / 4) * TimeOffsetMicroSec[3];
-            }
-            else {
-              const double TimeOffsetMicroSec[4] = {3.5, 4.7, 5.9, 7.2};
-              return (std::floor(static_cast<double>(firingDataBlockReversed) / 4.0) * 57.6) +
-                  TimeOffsetMicroSec[(dsrBase32Reversed % 4)] + (dsrBase32Reversed / 4) * TimeOffsetMicroSec[3];
-            }
-          };
-
   if( lidar_specification_.lasers.size() != 64 ) {
     CF_ERROR("Invalid call: lasers_table was not correctly initialized for sensor '%s'. "
         "lidar_specification.lasers.size=%zu",
@@ -969,10 +986,10 @@ bool c_hdl_packet_parser::parse_hdl64(const HDLDataPacket * dataPacket)
     }
 
     const double blockdsr0 =
-        HDL64EAdjustTimeStamp(block, 0, dual_mode);
+        precomputed_timing_offsets_[block][0];
 
     const double nextblockdsr0 =
-        HDL64EAdjustTimeStamp(block + (dual_mode ? 4 : 2), 0, dual_mode);
+        precomputed_timing_offsets_[block + (dual_mode ? 4 : 2)][0];
 
     for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
 
@@ -988,17 +1005,14 @@ bool c_hdl_packet_parser::parse_hdl64(const HDLDataPacket * dataPacket)
       const c_lasers_corrections_table & corrections =
           precomuted_corrections_table_[laser_index];
 
-      //
-      const double timestamp_adjustment = K == 0 ?
-          blockdsr0 :
-          HDL64EAdjustTimeStamp(block, K, dual_mode);
+      const double timestamp_adjustment =
+          precomputed_timing_offsets_[block][K];
+
+      const double azimuth_adjustment =
+          azimuth_gap * ((timestamp_adjustment - blockdsr0) / (nextblockdsr0 - blockdsr0));
 
       const double timestamp =
           packet_timestamp + 1e-6 * timestamp_adjustment;
-
-      //
-      const double azimuth_adjustment =
-          azimuth_gap * ((timestamp_adjustment - blockdsr0) / (nextblockdsr0 - blockdsr0));
 
 
       double corrected_azimuth, corrected_elevation, corrected_distance, corrected_intensity;
