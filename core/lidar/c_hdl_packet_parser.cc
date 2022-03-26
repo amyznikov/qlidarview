@@ -135,7 +135,7 @@ bool c_hdl_packet_parser::setup(HDLSensorType sensor_type, HDLReturnMode return_
         *default_specification;
   }
 
-  if ( !precompute_timing_offsets() ) {
+  if ( !precompute_correction_tables() ) {
     CF_ERROR("precompute_timing_offsets() fails");
     return false;
   }
@@ -237,13 +237,16 @@ bool c_hdl_packet_parser::parse(const uint8_t * data, uint size)
 
 
 /**
- * Timing table calculation, from Velodyne user manual
+ * cached values precomputation, from Velodyne user manuals
  * */
-bool c_hdl_packet_parser::precompute_timing_offsets()
+bool c_hdl_packet_parser::precompute_correction_tables()
 {
-  timing_offsets_.clear();
+  precomputed_timing_offsets_.clear();
+  precomuted_corrections_table_.clear();
 
-  CF_DEBUG("sensor_type()=%s", toString(sensor_type()));
+  CF_DEBUG("sensor_type=%s return_mode=%s",
+      toString(sensor_type()),
+      toString(return_mode()));
 
   switch (sensor_type()) {
 
@@ -259,9 +262,9 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
 
     int dataBlockIndex, dataPointIndex;
 
-    timing_offsets_.resize(nblocks);
+    precomputed_timing_offsets_.resize(nblocks);
     for( uint block = 0; block < nblocks; ++block ) {
-      timing_offsets_[block].resize(nfirings);
+      precomputed_timing_offsets_[block].resize(nfirings);
     }
 
     for( uint block = 0; block < nblocks; ++block ) {
@@ -273,7 +276,7 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
           dataBlockIndex = (block * 2) + (firing / 16);
         }
         dataPointIndex = firing % 16;
-        timing_offsets_[block][firing] =
+        precomputed_timing_offsets_[block][firing] =
             (full_firing_cycle * dataBlockIndex) +
                 (single_firing * dataPointIndex);
       }
@@ -295,9 +298,9 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
 
     int dataBlockIndex, dataPointIndex;
 
-    timing_offsets_.resize(nblocks);
+    precomputed_timing_offsets_.resize(nblocks);
     for( uint block = 0; block < nblocks; ++block ) {
-      timing_offsets_[block].resize(nfirings);
+      precomputed_timing_offsets_[block].resize(nfirings);
     }
 
     for( size_t block = 0; block < nblocks; ++block ) {
@@ -309,7 +312,7 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
           dataBlockIndex = block;
         }
         dataPointIndex = firing / 2;
-        timing_offsets_[block][firing] =
+        precomputed_timing_offsets_[block][firing] =
             (full_firing_cycle * dataBlockIndex) +
                 (single_firing * dataPointIndex);
       }
@@ -319,6 +322,7 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
   }
 
   case HDLSensor_HDL32E: {
+
     constexpr uint nblocks = 12;
     constexpr uint nfirings = 32;
 
@@ -329,9 +333,9 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
 
     double dataBlockIndex, dataPointIndex;
 
-    timing_offsets_.resize(nblocks);
+    precomputed_timing_offsets_.resize(nblocks);
     for( uint block = 0; block < nblocks; ++block ) {
-      timing_offsets_[block].resize(nfirings);
+      precomputed_timing_offsets_[block].resize(nfirings);
     }
 
     for( size_t block = 0; block < nblocks; ++block ) {
@@ -343,7 +347,7 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
           dataBlockIndex = block;
         }
         dataPointIndex = firing / 2;
-        timing_offsets_[block][firing] =
+        precomputed_timing_offsets_[block][firing] =
             (full_firing_cycle * dataBlockIndex) +
                 (single_firing * dataPointIndex);
       }
@@ -352,6 +356,23 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
   }
 
   case HDLSensor_HDL64: {
+
+    precomuted_corrections_table_.resize(lidar_specification_.lasers.size());
+
+    for ( uint i = 0, n = lidar_specification_.lasers.size(); i < n; ++i ) {
+
+      const c_hdl_lasers_table & laser =
+          lidar_specification_.lasers[i];
+
+      c_lasers_corrections_table & corrections =
+          precomuted_corrections_table_[i];
+
+      corrections.sin_rot_correction = sin(laser.rot_correction * M_PI / 180);
+      corrections.cos_rot_correction = cos(laser.rot_correction * M_PI / 180);
+      corrections.sin_vert_correction = sin(laser.vert_correction * M_PI / 180);
+      corrections.cos_vert_correction = cos(laser.vert_correction * M_PI / 180);
+    }
+
     return true;
   }
 
@@ -366,15 +387,15 @@ bool c_hdl_packet_parser::precompute_timing_offsets()
 
     int sequence, firingGroup;
 
-    timing_offsets_.resize(nsequences);
+    precomputed_timing_offsets_.resize(nsequences);
 
     for( sequence = 0; sequence < nsequences; ++sequence ) {
-      timing_offsets_[sequence].resize(nfiringGroups);
+      precomputed_timing_offsets_[sequence].resize(nfiringGroups);
     }
 
     for( sequence = 0; sequence < nsequences; ++sequence ) {
       for( firingGroup = 0; firingGroup < nfiringGroups; ++firingGroup ) {
-        timing_offsets_[sequence][firingGroup] =
+        precomputed_timing_offsets_[sequence][firingGroup] =
             (full_firing_cycle * sequence) +
                 (single_firing * firingGroup) -
                 offset_paket_time;
@@ -491,15 +512,15 @@ bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
           K < 16 ? 0 : 1;
 
 
-      const int laser_number =
+      const int laser_index =
           channelNumber;
 
-      const c_hdl_lasers_table &corrections =
-          lasers_table[laser_number];
+      const c_hdl_lasers_table & laser =
+          lasers_table[laser_index];
 
       const double distance =
           laserReturn.distance > 0 ?
-              laserReturn.distance * spec.distance_resolution + corrections.distCorrection :
+              laserReturn.distance * spec.distance_resolution + laser.distance_correction :
               0;
 
       const double timestamp_adjustment =
@@ -513,7 +534,7 @@ bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
 
       double azimuth =
           1e-2 * (current_azimuth + azimuth_adjustment) -
-              lasers_table[laser_number].rotCorrection;
+              lasers_table[laser_index].rot_correction;
 
       while (azimuth >= 360) {
         azimuth -= 360;
@@ -523,13 +544,13 @@ bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
       }
 
       c_lidar_point p = {
-          .laser_id = laser_number,
-          .laser_ring = lasers_table[laser_number].laser_ring,
+          .laser_id = laser_index,
+          .laser_ring = lasers_table[laser_index].laser_ring,
           .pkt = pktcounter_,
           .datablock = block,
           .flags = 0,
           .azimuth = (double) (azimuth * M_PI / 180),
-          .elevation = (double) (lasers_table[laser_number].vertCorrection * M_PI / 180),
+          .elevation = (double) (laser.vert_correction * M_PI / 180),
           .distance = distance,
           .intensity = laserReturn.intensity / 255.,
           .timestamp = timestamp,
@@ -648,15 +669,15 @@ bool c_hdl_packet_parser::parse_vlp32(const HDLDataPacket * dataPacket)
       const HDLLaserReturn &laserReturn =
           current_block.laserReturns[K];
 
-      const int laser_number =
+      const int laser_index =
           K;
 
-      const c_hdl_lasers_table &corrections =
-          lasers_table[laser_number];
+      const c_hdl_lasers_table & laser =
+          lasers_table[laser_index];
 
       const double distance =
           laserReturn.distance > 0 ?
-              laserReturn.distance * spec.distance_resolution + corrections.distCorrection :
+              laserReturn.distance * spec.distance_resolution + laser.distance_correction :
               0;
 
       const double timestamp_adjustment =
@@ -672,7 +693,7 @@ bool c_hdl_packet_parser::parse_vlp32(const HDLDataPacket * dataPacket)
 
       double azimuth =
           1e-2 * (current_azimuth + azimuth_adjustment) -
-              lasers_table[laser_number].rotCorrection;
+              lasers_table[laser_index].rot_correction;
 
       while (azimuth >= 360) {
         azimuth -= 360;
@@ -682,13 +703,13 @@ bool c_hdl_packet_parser::parse_vlp32(const HDLDataPacket * dataPacket)
       }
 
       c_lidar_point p = {
-          .laser_id = laser_number,
-          .laser_ring = lasers_table[laser_number].laser_ring,
+          .laser_id = laser_index,
+          .laser_ring = lasers_table[laser_index].laser_ring,
           .pkt = pktcounter_,
           .datablock = block,
           .flags = 0,
           .azimuth = (double) (azimuth * M_PI / 180),
-          .elevation = (double) (lasers_table[laser_number].vertCorrection * M_PI / 180),
+          .elevation = (double) (laser.vert_correction * M_PI / 180),
           .distance = distance,
           .intensity = laserReturn.intensity / 255.,
           .timestamp = timestamp,
@@ -797,15 +818,15 @@ bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
       const HDLLaserReturn &laserReturn =
           current_block.laserReturns[K];
 
-      const int laser_number =
+      const int laser_index =
           K;
 
-      const c_hdl_lasers_table &corrections =
-          lasers_table[laser_number];
+      const c_hdl_lasers_table & laser =
+          lasers_table[laser_index];
 
       const double distance =
           laserReturn.distance > 0 ?
-              laserReturn.distance * spec.distance_resolution + corrections.distCorrection :
+              laserReturn.distance * spec.distance_resolution + laser.distance_correction :
               0;
 
       const double timestamp_adjustment =
@@ -821,7 +842,7 @@ bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
 
       double azimuth =
           1e-2 * (current_azimuth + azimuth_adjustment) -
-              lasers_table[laser_number].rotCorrection;
+              lasers_table[laser_index].rot_correction;
 
       while (azimuth >= 360) {
         azimuth -= 360;
@@ -831,13 +852,13 @@ bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
       }
 
       c_lidar_point p = {
-          .laser_id = laser_number,
-          .laser_ring = lasers_table[laser_number].laser_ring,
+          .laser_id = laser_index,
+          .laser_ring = lasers_table[laser_index].laser_ring,
           .pkt = pktcounter_,
           .datablock = block,
           .flags = 0,
           .azimuth = (double) (azimuth * M_PI / 180),
-          .elevation = (double) (lasers_table[laser_number].vertCorrection * M_PI / 180),
+          .elevation = (double) (laser.vert_correction * M_PI / 180),
           .distance = distance,
           .intensity = laserReturn.intensity / 255.,
           .timestamp = timestamp,
@@ -887,6 +908,9 @@ bool c_hdl_packet_parser::parse_hdl64(const HDLDataPacket * dataPacket)
 
   const std::vector<c_hdl_lasers_table> &lasers_table =
       spec.lasers;
+
+  const double distance_resolution =
+      spec.distance_resolution;
 
   const double packet_timestamp =
       1e-6 * dataPacket->TohTimestamp; // [s]
@@ -955,63 +979,143 @@ bool c_hdl_packet_parser::parse_hdl64(const HDLDataPacket * dataPacket)
       const HDLLaserReturn &laserReturn =
           current_block.laserReturns[K];
 
-
-      const int laser_number =
+      const int laser_index =
           K + bank_origin;
 
-      const c_hdl_lasers_table & corrections =
-          lasers_table[laser_number];
+      const c_hdl_lasers_table & laser =
+          lasers_table[laser_index];
 
+      const c_lasers_corrections_table & corrections =
+          precomuted_corrections_table_[laser_index];
 
-      const double distance =
-          laserReturn.distance > 0 ?
-              laserReturn.distance * spec.distance_resolution + corrections.distCorrection :
-              0;
-
-      const double timestamp_adjustment =
-          K == 0 ?
-              blockdsr0 :
-              HDL64EAdjustTimeStamp(block, K, dual_mode);
-
-      const double azimuth_adjustment =
-          azimuth_gap * ((timestamp_adjustment - blockdsr0) / (nextblockdsr0 - blockdsr0));
+      //
+      const double timestamp_adjustment = K == 0 ?
+          blockdsr0 :
+          HDL64EAdjustTimeStamp(block, K, dual_mode);
 
       const double timestamp =
           packet_timestamp + 1e-6 * timestamp_adjustment;
 
-      double azimuth =
-          1e-2 * (current_azimuth + azimuth_adjustment) -
-              lasers_table[laser_number].rotCorrection;
+      //
+      const double azimuth_adjustment =
+          azimuth_gap * ((timestamp_adjustment - blockdsr0) / (nextblockdsr0 - blockdsr0));
 
-      while ( azimuth >= 360 ) {
-        azimuth -= 360;
+
+      double corrected_azimuth, corrected_elevation, corrected_distance, corrected_intensity;
+
+      if( !laserReturn.distance || (!laser.horz_offset && !laser.vert_offset) ) {
+        corrected_azimuth =
+            (1e-2 * (current_azimuth + azimuth_adjustment) - lasers_table[laser_index].rot_correction) * M_PI / 180;
+
+        corrected_elevation =
+            (lasers_table[laser_index].vert_correction * M_PI / 180);
+
+        corrected_distance =
+            laserReturn.distance > 0 ?
+                laserReturn.distance * distance_resolution + laser.distance_correction :
+                0;
+
+        while (corrected_azimuth >= 2 * M_PI) {
+          corrected_azimuth -= 2 * M_PI;
+        }
+        while (corrected_azimuth < 0) {
+          corrected_azimuth += 2 * M_PI;
+        }
+
       }
-      while ( azimuth < 0 ) {
-        azimuth += 360;
+      else {
+
+        const double azimuth =
+            (current_azimuth + azimuth_adjustment) * M_PI / 18000;
+
+        //
+        const double distance =
+            laserReturn.distance > 0 ?
+                laserReturn.distance * distance_resolution + laser.distance_correction :
+                0;
+
+        // sin(a-b) = sin(a)*cos(b) - cos(a)*sin(b)
+        // cos(a-b) = cos(a)*cos(b) + sin(a)*sin(b)
+        const double sin_rot_angle =
+            sin(azimuth) * corrections.cos_rot_correction - cos(azimuth) * corrections.sin_rot_correction;
+
+        const double cos_rot_angle =
+            cos(azimuth) * corrections.cos_rot_correction + sin(azimuth) * corrections.sin_rot_correction;
+
+        const double xy_distance =
+            distance * corrections.cos_vert_correction - laser.vert_offset * corrections.sin_vert_correction;
+
+        // Calculate temporal X and Y, use absolute values.
+        const double xx =
+            std::abs(xy_distance * sin_rot_angle - laser.horz_offset * cos_rot_angle);
+
+        const double yy =
+            std::abs(xy_distance * cos_rot_angle + laser.horz_offset * sin_rot_angle);
+
+        const double distance_corr_x = laser.dist_correction_x ?
+            (laser.distance_correction - laser.dist_correction_x) * (xx - 2.4) / (25.04 - 2.4) +
+                laser.dist_correction_x - laser.distance_correction :
+            0;
+
+        const double distance_corr_y = laser.dist_correction_y ?
+            (laser.distance_correction - laser.dist_correction_y) * (yy - 1.93) / (25.04 - 1.93) +
+                laser.dist_correction_y - laser.distance_correction :
+            0;
+
+        const double distance_x =
+            distance + distance_corr_x;
+
+        const double distance_y =
+            distance + distance_corr_y;
+
+        const double x =
+            sin_rot_angle * (distance_x * corrections.cos_vert_correction - laser.vert_offset * corrections.sin_vert_correction) -
+                laser.horz_offset * cos_rot_angle;
+
+        const double y =
+            cos_rot_angle * (distance_y * corrections.cos_vert_correction - laser.vert_offset * corrections.sin_vert_correction) +
+                laser.horz_offset * sin_rot_angle;
+
+        const double z =
+            distance_y * corrections.sin_vert_correction + laser.vert_offset * corrections.cos_vert_correction;
+
+        corrected_azimuth =
+            atan2(y, x) + M_PI;
+
+        corrected_elevation =
+            atan2(z, sqrt(x * x + y * y));
+
+        corrected_distance =
+            sqrt(x * x + y * y + z * z);
       }
 
+      if ( !laser.focal_distance ) {
+        corrected_intensity = laserReturn.intensity / 255.0;
+      }
+      else {
+        const double focal_offset =
+            256 * SQR(1.0 - laser.focal_distance / 131.0);
 
-      const double focal_offset =
-          256 * SQR(1.0 - corrections.focalDistance / 131.0);
+        const double inside_abs_value =
+            std::abs(focal_offset - 256 * SQR(1.0 - laserReturn.distance / 65535.0));
 
-      const double inside_abs_value =
-          std::abs(focal_offset - 256 * SQR(1.0 - laserReturn.distance / 65535.0));
+        corrected_intensity = std::max(0.,
+            (inside_abs_value > 0 ?
+                laserReturn.intensity + laser.focal_slope * inside_abs_value :
+                laserReturn.intensity + laser.close_slope * inside_abs_value) / 255.);
 
-      const double intensity =
-          inside_abs_value > 0 ?
-              laserReturn.intensity + corrections.focalSlope * inside_abs_value:
-              laserReturn.intensity + corrections.closeSlope * inside_abs_value;
+      }
 
       c_lidar_point p = {
-          .laser_id = laser_number,
-          .laser_ring = lasers_table[laser_number].laser_ring,
+          .laser_id = laser_index,
+          .laser_ring = lasers_table[laser_index].laser_ring,
           .pkt = pktcounter_,
           .datablock = block,
           .flags = 0,
-          .azimuth = (double) (azimuth * M_PI / 180),
-          .elevation = (double) (lasers_table[laser_number].vertCorrection * M_PI / 180),
-          .distance = distance,
-          .intensity = (std::max)(1.0 / 255, std::min(intensity / 255., 1.)),
+          .azimuth = corrected_azimuth,
+          .elevation = corrected_elevation,
+          .distance = corrected_distance,
+          .intensity = corrected_intensity,
           .timestamp = timestamp,
       };
 
@@ -1021,6 +1125,7 @@ bool c_hdl_packet_parser::parse_hdl64(const HDLDataPacket * dataPacket)
 
   return true;
 }
+
 
 
 
@@ -1113,29 +1218,29 @@ bool c_hdl_packet_parser::parse_vls128(const HDLDataPacket * dataPacket)
     for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
 
       // Offset the laser in this block by which block it's in
-      const int laser_number = K + bank_origin;
+      const int laser_index = K + bank_origin;
 
       // VLS-128 fires 8 lasers at a time
-      const int firing_order = laser_number / 8;
+      const int firing_order = laser_index / 8;
 
       const HDLLaserReturn & laserReturn =
           current_block.laserReturns[K];
 
-      const c_hdl_lasers_table & corrections =
-          spec.lasers[laser_number];
+      const c_hdl_lasers_table & laser =
+          spec.lasers[laser_index];
 
       const double distance =
           laserReturn.distance > 0 ?
-              laserReturn.distance * spec.distance_resolution + corrections.distCorrection :
+              laserReturn.distance * spec.distance_resolution + laser.distance_correction :
               0;
 
       const double timestamp =
-          packet_timestamp + timing_offsets_[block / 4][firing_order + laser_number / 64];
+          packet_timestamp + precomputed_timing_offsets_[block / 4][firing_order + laser_index / 64];
 
       // correct for the laser azimuthal pattern and  rotation as a function of timing during the firings
       double interpolated_azimuth =
           1e-2 * (current_azimuth + azimuth_gap * vls_128_laser_azimuth_cache[firing_order]) -
-              lasers_table[laser_number].rotCorrection;
+              lasers_table[laser_index].rot_correction;
       while ( interpolated_azimuth >= 360 ) {
         interpolated_azimuth -= 360;
       }
@@ -1144,13 +1249,13 @@ bool c_hdl_packet_parser::parse_vls128(const HDLDataPacket * dataPacket)
       }
 
       c_lidar_point p = {
-          .laser_id = laser_number,
-          .laser_ring = lasers_table[laser_number].laser_ring,
+          .laser_id = laser_index,
+          .laser_ring = lasers_table[laser_index].laser_ring,
           .pkt = pktcounter_,
           .datablock = block,
           .flags = 0,
           .azimuth = (double) (interpolated_azimuth * M_PI / 180),
-          .elevation = (double) (lasers_table[laser_number].vertCorrection * M_PI / 180),
+          .elevation = (double) (laser.vert_correction * M_PI / 180),
           .distance = distance,
           .intensity = (double) (laserReturn.intensity / 255.0),
           .timestamp = timestamp,

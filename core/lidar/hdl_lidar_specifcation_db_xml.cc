@@ -178,12 +178,12 @@ bool load_hdl_lidar_specifcation_db_xml(const std::string & xmlfilename,
       return false;
     }
 
-    if( !getValue(px, "rotCorrection_", &table.rotCorrection) ) {
+    if( !getValue(px, "rotCorrection_", &table.rot_correction) ) {
       CF_DEBUG("getValue(rotCorrection_) fails");
       return false;
     }
 
-    if( !getValue(px, "vertCorrection_", &table.vertCorrection) ) {
+    if( !getValue(px, "vertCorrection_", &table.vert_correction) ) {
       CF_DEBUG("getValue(vertCorrection_) fails");
       return false;
     }
@@ -191,22 +191,22 @@ bool load_hdl_lidar_specifcation_db_xml(const std::string & xmlfilename,
     /*
      * Optional data
      * */
-    getValue(px, "distCorrection_", &table.distCorrection);
-    getValue(px, "distCorrection_", &table.distCorrection);
-    getValue(px, "distCorrectionX_", &table.distCorrectionX);
-    getValue(px, "distCorrectionY_", &table.distCorrectionY);
-    getValue(px, "vertOffsetCorrection_", &table.vertOffsetCorrection);
-    getValue(px, "horizOffsetCorrection_", &table.horizOffsetCorrection);
-    getValue(px, "focalDistance_", &table.focalDistance);
-    getValue(px, "focalSlope_", &table.focalSlope);
-    getValue(px, "closeSlope_", &table.closeSlope);
+    getValue(px, "distCorrection_", &table.distance_correction);
+    getValue(px, "distCorrection_", &table.distance_correction);
+    getValue(px, "distCorrectionX_", &table.dist_correction_x);
+    getValue(px, "distCorrectionY_", &table.dist_correction_y);
+    getValue(px, "vertOffsetCorrection_", &table.vert_offset);
+    getValue(px, "horizOffsetCorrection_", &table.horz_offset);
+    getValue(px, "focalDistance_", &table.focal_distance);
+    getValue(px, "focalSlope_", &table.focal_slope);
+    getValue(px, "closeSlope_", &table.close_slope);
 
-    table.vertOffsetCorrection *= 0.1; // [cm]->[m]
-    table.horizOffsetCorrection *= 0.1; // [cm]->[m]
-    table.distCorrection *= 1e-2; // [cm] -> [m]
-    table.distCorrectionX *= 1e-2; // [cm] -> [m]
-    table.distCorrectionY *= 1e-2; // [cm] -> [m]
-    table.focalDistance *= 1e-2; // [cm] -> [m]
+    table.vert_offset *= 1e-2; // [cm]->[m]
+    table.horz_offset *= 1e-2; // [cm]->[m]
+    table.distance_correction *= 1e-2; // [cm] -> [m]
+    table.dist_correction_x *= 1e-2; // [cm] -> [m]
+    table.dist_correction_y *= 1e-2; // [cm] -> [m]
+    table.focal_distance *= 1e-2; // [cm] -> [m]
 
     spec->lasers.emplace_back(table);
 
@@ -226,7 +226,7 @@ bool load_hdl_lidar_specifcation_db_xml(const std::string & xmlfilename,
   static const auto all_zeros_after =
       [](const c_hdl_lidar_specifcation * spec, uint start_index) -> bool {
         for ( uint i = start_index, n = spec->lasers.size(); i < n; ++i ) {
-          if ( spec->lasers[i].vertCorrection != 0 ) {
+          if ( spec->lasers[i].vert_correction != 0 ) {
             return false;
           }
         }
@@ -301,7 +301,7 @@ bool load_hdl_lidar_specifcation_db_xml(const std::string & xmlfilename,
 
   std::sort(spec->lasers.begin(), spec->lasers.end(),
       [](const c_hdl_lasers_table & prev, const c_hdl_lasers_table & next) {
-        return prev.vertCorrection < next.vertCorrection;
+        return prev.vert_correction < next.vert_correction;
       });
 
   for( int i = 0; i < num_lasers; ++i ) {

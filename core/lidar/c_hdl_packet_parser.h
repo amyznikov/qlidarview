@@ -110,12 +110,13 @@ public:
 
 protected:
   bool setup(HDLSensorType sensor_type, HDLReturnMode return_mode);
-  bool precompute_timing_offsets();
+  bool precompute_correction_tables();
   bool parse_vlp16(const HDLDataPacket *dataPacket);
   bool parse_vlp32(const HDLDataPacket *dataPacket);
   bool parse_hdl32(const HDLDataPacket *dataPacket);
   bool parse_hdl64(const HDLDataPacket *dataPacket);
   bool parse_vls128(const HDLDataPacket *dataPacket);
+
 
 protected:
   //HDLSensorType sensor_type_ = HDLSensor_unknown;
@@ -127,8 +128,19 @@ protected:
   // current lidar specification table
   c_hdl_lidar_specifcation lidar_specification_;
 
-  // timing offset lookup table
-  std::vector< std::vector<float> > timing_offsets_;
+  struct c_lasers_corrections_table {
+    double sin_rot_correction;
+    double cos_rot_correction;
+    double sin_vert_correction;
+    double cos_vert_correction;
+  };
+
+  // precomputed coordinate corrections table
+  std::vector<c_lasers_corrections_table> precomuted_corrections_table_;
+
+  // precomputed timing offset lookup table
+  std::vector< std::vector<float> > precomputed_timing_offsets_;
+
   // Caches the azimuth percent offset for the VLS-128 laser firings
   double vls_128_laser_azimuth_cache[16];
 };
@@ -192,234 +204,5 @@ inline bool is_single_return_mode(HDLReturnMode return_mode)
   }
   return false;
 }
-
-
-//
-//inline constexpr uint hdl_lidar_packet_size()
-//{
-//  // Data-Packet Specifications says that laser-packets are 1206 byte long.
-//  //  That is : (2+2+(2+1)*32)*12 + 4 + 1 + 1
-//  //                #lasers^   ^#firingPerPkt
-//  return 1206;
-//}
-//
-//inline bool is_hdl_lidar_packet(const uint8_t * data, uint size)
-//{
-//  if (size == hdl_lidar_packet_size()) {
-//    return true;
-//  }
-//  return false;
-//}
-//
-//inline bool isUpperBlock(const HDL_FiringData & firing)
-//{
-//  return firing.blockIdentifier == HDL_BLOCK_32_TO_63;
-//}
-//
-//inline uint16_t getElevation100th(const HDL_FiringData & )
-//{
-//  return 0;
-//}
-//
-//inline int getScanningVerticalDir(const HDL_FiringData & firing)
-//{
-//  return firing.blockIdentifier >> 15;
-//}
-//
-//inline int getScanningHorizontalDir(const HDL_FiringData & firing)
-//{
-//  return firing.rotationalPosition >> 15;
-//}
-//
-//inline uint16_t getRotationalPosition(const HDL_FiringData & firing)
-//{
-//  return firing.rotationalPosition;
-//}
-//
-//inline bool isHDL64(const HDLDataPacket & packet)
-//{
-//  return packet.firingData[1].blockIdentifier == HDL_BLOCK_32_TO_63 &&
-//      packet.firingData[2].blockIdentifier == HDL_BLOCK_0_TO_31;
-//}
-//
-//inline bool isVLS128(const HDLDataPacket & packet)
-//{
-//  return (packet.factoryField2 == HDLSensor_VLS128 && !isHDL64(packet));
-//}
-//
-//inline HDLSensorType getSensorType(const HDLDataPacket & packet)
-//{
-//  return isHDL64(packet) ?
-//      HDLSensor_HDL64 : static_cast<HDLSensorType>(packet.factoryField2);
-//}
-//
-//inline bool isDualModeReturnHDL64(const HDLDataPacket & packet)
-//{
-//  return getRotationalPosition(packet.firingData[2]) == getRotationalPosition(packet.firingData[0]);
-//}
-//
-//inline HDL_DualReturnSensorMode getDualReturnSensorMode(const HDLDataPacket & packet)
-//{
-//  if (isHDL64(packet)) {
-//    return isDualModeReturnHDL64(packet) ? HDL_DUAL_RETURN : HDL_STRONGEST_RETURN;
-//  }
-//
-//  return static_cast<HDL_DualReturnSensorMode>(packet.factoryField1);
-//}
-//
-//inline bool hdl_isValidPacket(const unsigned char * data, unsigned int dataLength)
-//{
-//  if( dataLength != hdl_lidar_packet_size() ) {
-//    return false;
-//  }
-//
-//  const HDLDataPacket *dataPacket =
-//      reinterpret_cast<const HDLDataPacket*>(data);
-//
-//  return ((dataPacket->firingData[0].blockIdentifier == HDL_BLOCK_0_TO_31) ||
-//      (dataPacket->firingData[0].blockIdentifier == HDL_BLOCK_32_TO_63));
-//}
-//
-//inline bool isDualModeReturnVLS128(const HDLDataPacket & packet)
-//{
-//  return ((packet.factoryField1 == HDL_DUAL_RETURN) ||
-//      (packet.factoryField1 == HDL_DUAL_RETURN_WITH_CONFIDENCE) ||
-//      (packet.factoryField1 == HDL_TRIPLE_RETURN));
-//}
-//
-//inline bool isDualModeReturn16Or32(const HDLDataPacket & packet)
-//{
-//  return getRotationalPosition(packet.firingData[1]) == getRotationalPosition(packet.firingData[0]);
-//}
-//
-//inline bool isDualModeReturn(const HDLDataPacket & packet)
-//{
-//  if (isVLS128(packet))
-//    return isDualModeReturnVLS128(packet);
-//  if (isHDL64(packet))
-//    return isDualModeReturnHDL64(packet);
-//  else
-//    return isDualModeReturn16Or32(packet);
-//}
-//
-//
-//
-//inline int getExtDataPacketType(const HDLDataPacket & packet)
-//{
-//  if( packet.factoryField1 == HDL_TRIPLE_RETURN ) {
-//    return HDL_EXT_MODE_TRIPLE_RETURN;
-//  }
-//
-//  if( packet.factoryField1 == HDL_DUAL_RETURN_WITH_CONFIDENCE ) {
-//    return HDL_EXT_MODE_CONFIDENCE;
-//  }
-//
-//  return HDL_EXT_MODE_NONE;
-//}
-//
-//inline bool isDualBlockOfDualPacket128(const int firingBlock)
-//{
-//  return (firingBlock % 2 == 1);
-//}
-//
-//inline bool isDualBlockOfDualPacket64(const int firingBlock)
-//{
-//  return (firingBlock % 4 >= 2);
-//}
-//
-//inline bool isDualBlockOfDualPacket16Or32(const int firingBlock)
-//{
-//  return (firingBlock % 2 == 1);
-//}
-//
-//inline bool isDualReturnFiringBlock(const HDLDataPacket & packet, const int firingBlock)
-//{
-//  if( isVLS128(packet) ) {
-//
-//    if( getExtDataPacketType(packet) == HDL_EXT_MODE_NONE ) {
-//      return isDualModeReturnVLS128(packet) && isDualBlockOfDualPacket128(firingBlock);
-//    }
-//
-//    if( isDualModeReturnVLS128(packet) ) {
-//      if( ((firingBlock == 1) || (firingBlock == 4) || (firingBlock == 7) || (firingBlock == 10)) ) {
-//        return true;
-//      }
-//    }
-//
-//    return false;
-//  }
-//
-//  if( isHDL64(packet) ) {
-//    return isDualModeReturnHDL64(packet) && isDualBlockOfDualPacket64(firingBlock);
-//  }
-//
-//  return isDualModeReturn16Or32(packet) && isDualBlockOfDualPacket16Or32(firingBlock);
-//}
-//
-//
-//inline int getRotationalDiffForVLS128(const HDLDataPacket & packet, int firingBlock, int LastAzimuth)
-//{
-//  if( static_cast<HDL_DualReturnSensorMode>(packet.factoryField1) == HDL_DUAL_RETURN ||
-//      static_cast<HDL_DualReturnSensorMode>(packet.factoryField1) == HDL_TRIPLE_RETURN ||
-//      static_cast<HDL_DualReturnSensorMode>(packet.factoryField1) == HDL_DUAL_RETURN_WITH_CONFIDENCE ) {
-//
-//    return static_cast<int>((36000 +
-//        packet.firingData[firingBlock].rotationalPosition - LastAzimuth) % 36000);
-//  }
-//
-//  if( firingBlock > 11 - 4 ) {
-//    firingBlock = 7;
-//  }
-//
-//  return static_cast<int>((36000 +
-//      packet.firingData[firingBlock + 4].rotationalPosition -
-//      packet.firingData[firingBlock].rotationalPosition) %
-//      36000);
-//}
-//
-//inline int unsignedAngleDiffTo_m180_180deg(uint16_t end_100thDeg, uint16_t start_100thDeg)
-//{
-//  return static_cast<int>(((36000 + 18000) + end_100thDeg - start_100thDeg) % 36000) - 18000;
-//}
-
-
-//
-//  std::string to_tsv_string() const
-//  {
-//    char sep = '\t';
-//    std::stringstream ss;
-//    for (int f = 0; f < HDL_FIRING_PER_PKT; f++)
-//      ss << "blkIden:" << sep << std::hex << firingData[f].blockIdentifier << sep;
-//    ss << std::endl;
-//    for (int f = 0; f < HDL_FIRING_PER_PKT; f++)
-//      ss << "blkAzm:" << sep << std::dec << firingData[f].rotationalPosition << sep;
-//    ss << std::endl;
-//    for (int f = 0; f < HDL_FIRING_PER_PKT; f++)
-//      ss << "rawD" << sep << "intens" << sep;
-//    ss << std::endl;
-//    for (int dsr = 0; dsr < HDL_LASER_PER_FIRING; dsr++)
-//    {
-//      for (int f = 0; f < HDL_FIRING_PER_PKT; f++)
-//      {
-//        ss << (int)firingData[f].laserReturns[dsr].distance << sep
-//           << (int)firingData[f].laserReturns[dsr].intensity << sep;
-//      }
-//      ss << std::endl;
-//    }
-//    for (int f = 0; f < HDL_FIRING_PER_PKT - 2; f++)
-//      ss << sep << sep;
-//    ss << "gpsTime:" << sep << (int)TohTimestamp << sep;
-//    ss << std::endl;
-//    for (int f = 0; f < HDL_FIRING_PER_PKT - 2; f++)
-//      ss << sep << sep;
-//
-//    ss << "factyField1:" << sep << "0x" << std::hex << (int)factoryField1 << sep;
-//    ss << std::endl;
-//    for (int f = 0; f < HDL_FIRING_PER_PKT - 2; f++)
-//      ss << sep << sep;
-//    ss << "factyField2:" << sep << "0x" << std::hex << (int)factoryField2 << sep;
-//    ss << std::endl;
-//    return ss.str();
-//  }
 
 #endif /* __c_hdl_packet_parser_h__ */

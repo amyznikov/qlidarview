@@ -50,16 +50,16 @@ int main(int argc, char * argv[])
 
     printf("%d,", item.laser_id);
     printf("%d,", item.laser_ring);
-    printf("%+.3f,", item.rotCorrection);
-    printf("%+.3f,", item.vertCorrection);
-    printf("%+.3f,", item.vertOffsetCorrection);
-    printf("%+.3f,", item.horizOffsetCorrection);
-    printf("%+.3f,", item.distCorrection);
-    printf("%+.3f,", item.distCorrectionX);
-    printf("%+.3f,", item.distCorrectionY);
-    printf("%+.3f,", item.focalDistance);
-    printf("%+.3f,", item.focalSlope);
-    printf("%+.3f", item.closeSlope);
+    printf("%+.3f,", item.rot_correction);
+    printf("%+.3f,", item.vert_correction);
+    printf("%+.3f,", item.vert_offset);
+    printf("%+.3f,", item.horz_offset);
+    printf("%+.3f,", item.distance_correction);
+    printf("%+.3f,", item.dist_correction_x);
+    printf("%+.3f,", item.dist_correction_y);
+    printf("%+.3f,", item.focal_distance);
+    printf("%+.3f,", item.focal_slope);
+    printf("%+.3f", item.close_slope);
     printf("},\n");
 
   }

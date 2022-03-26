@@ -50,25 +50,27 @@ struct c_hdl_lasers_table
   int laser_ring;
 
   // Rotational (azimuth) correction in Degrees
-  double rotCorrection;
+  double rot_correction;
 
   // Vertical elevation in Degrees
-  double vertCorrection;
+  double vert_correction;
 
-  // Vertical correction factor in [m].
+  // Vertical offset in [m].
   // This refers to the physical vertical offset of each of the laser blocks.
-  double vertOffsetCorrection;
+  double vert_offset;
 
-  // Horizontal correction factor in [m].
+  // Horizontal offset in [m].
   // This refers to the physical horizontal (i.e. left or right) offset of each of the laser blocks.
-  double horizOffsetCorrection;
+  double horz_offset;
 
-  double distCorrection; // [m]
-  double distCorrectionX; // [m]
-  double distCorrectionY; // [m]
-  double focalDistance; // [m]
-  double focalSlope;
-  double closeSlope; // Used in HDL-64 only
+  double distance_correction; // [m]
+
+  // two-point calibration when available
+  double dist_correction_x; // [m]
+  double dist_correction_y; // [m]
+  double focal_distance; // [m]
+  double focal_slope;
+  double close_slope; // Used in HDL-64 only
 
 };
 

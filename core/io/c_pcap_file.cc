@@ -144,6 +144,7 @@ bool c_pcap_reader::open(const std::string & filename, const std::string & filte
   case DLT_NULL:
     data_header_size_ = sizeof(c_bsd_loopback_header);
     break;
+
   default:
     data_header_size_ = -1;
     errmsg_ = "Unknown link type in pcap file. Cannot tell where the payload is.";
@@ -226,7 +227,7 @@ int c_pcap_reader::read(const pcap_pkthdr ** paket_header, const c_pcap_data_hea
 
     case DLT_EN10MB:
       if( pkt_header->len < sizeof(c_en10mb_header) ) {
-        CF_ERROR("Invalid pkt_header->len=%ud < ethernet_header_size=%u",
+        CF_ERROR("Invalid pkt_header->len=%ud < ethernet_header_size=%zu",
             pkt_header->len, sizeof(c_en10mb_header));
         status = PCAP_ERROR;
       }
@@ -237,7 +238,7 @@ int c_pcap_reader::read(const pcap_pkthdr ** paket_header, const c_pcap_data_hea
 
     case DLT_NULL:
       if( pkt_header->len < sizeof(c_bsd_loopback_header) ) {
-        CF_ERROR("Invalid pkt_header->len=%ud < loopback_header_size=%u",
+        CF_ERROR("Invalid pkt_header->len=%ud < loopback_header_size=%zu",
             pkt_header->len, sizeof(c_bsd_loopback_header));
         status = PCAP_ERROR;
       }
