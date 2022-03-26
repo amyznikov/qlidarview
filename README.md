@@ -13,7 +13,8 @@ Formally supported LiDARs at moment are VLP16, VLP32C, HDL32E, HDL64 and VLS128,
 but no extensive testing was made yet because I still waiting for actual datasets 
 appropriate for testings purposes.
 
-The default calibration parameters are collected from LiDARs user manuals and VeloView .xml files.
+The conversion to point clouds and range images is completelly rely to calibration tables which usually should be provided by sensor manufacturer.
+The default calibration parameters hardcoded into application code are collected from public LiDARs user manuals and VeloView .xml files.
 
 The datalink types curretly supported are only DLT_NULL=0 (BSD loopback encapsulation) 
 and DLT_EN10MB=1 (Ethernet (10Mb))
