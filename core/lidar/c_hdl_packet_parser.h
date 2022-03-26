@@ -103,6 +103,9 @@ public:
   void set_hdl_framing_mode(enum HDLFramingMode v);
   enum HDLFramingMode hdl_framing_mode() const;
 
+  void set_hdl_frame_seam_azimuth(double azimuth_in_degrees);
+  double hdl_frame_seam_azimuth() const;
+
   int last_known_azimuth() const;
   int pktcounter() const;
 
@@ -116,6 +119,7 @@ protected:
   bool parse_hdl32(const HDLDataPacket *dataPacket);
   bool parse_hdl64(const HDLDataPacket *dataPacket);
   bool parse_vls128(const HDLDataPacket *dataPacket);
+  bool is_hdl_frame_seam(int current_packet_azimuth, int previous_packet_azimuth) const;
 
 
 protected:
@@ -124,6 +128,7 @@ protected:
   HDLFramingMode hdl_framing_mode_ = HDLFraming_Rotation;
   int last_known_azimuth_ = 0;
   int pktcounter_ = 0;
+  double hdl_frame_seam_azimuth_ = 0;
 
   // current lidar specification table
   c_hdl_lidar_specifcation lidar_specification_;

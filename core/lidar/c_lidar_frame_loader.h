@@ -31,9 +31,11 @@ public:
   virtual const c_hdl_lidar_specifcation * lidar_specification() const = 0;
   virtual HDLReturnMode return_mode() const = 0;
 
-
   virtual void set_hdl_framing_mode(enum HDLFramingMode v) = 0;
   virtual enum HDLFramingMode hdl_framing_mode() const = 0;
+
+  virtual void set_hdl_frame_seam_azimuth(double azimuth_in_degrees) = 0;
+  virtual double hdl_frame_seam_azimuth() const = 0;
 
   virtual c_lidar_frame::sptr load_next_frame() = 0;
 

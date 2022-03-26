@@ -30,24 +30,7 @@ static inline double SQR(double val)
 {
   return val * val;
 }
-//
-//bool setup_lasers_table(HDLSensorType sensor_type, c_hdl_lidar_specifcation * spec)
-//{
-//  spec->lasers.clear();
-//
-//  const c_hdl_lidar_specifcation * current_specification =
-//      get_hdl_lidar_specifcation(sensor_type);
-//
-//  if( !current_specification ) {
-//    CF_ERROR("get_default_hdl_lidar_specifcation(sensor_type=%s (%d)) fails",
-//        toString(sensor_type), (int )(sensor_type));
-//    return false;
-//  }
-//
-//  * spec = * current_specification;
-//
-//  return true;
-//}
+
 void c_hdl_packet_parser::reset()
 {
   frames.clear();
@@ -81,6 +64,29 @@ void c_hdl_packet_parser::set_hdl_framing_mode(enum HDLFramingMode v)
 enum HDLFramingMode c_hdl_packet_parser::hdl_framing_mode() const
 {
   return hdl_framing_mode_;
+}
+
+void c_hdl_packet_parser::set_hdl_frame_seam_azimuth(double azimuth_in_degrees)
+{
+  if ( azimuth_in_degrees < 0 ) {
+    hdl_frame_seam_azimuth_ = 0;
+  }
+  else {
+    hdl_frame_seam_azimuth_ = fmod(azimuth_in_degrees, 360) * 1e2;
+  }
+}
+
+double c_hdl_packet_parser::hdl_frame_seam_azimuth() const
+{
+  return hdl_frame_seam_azimuth_ * 1e-2;
+}
+
+bool c_hdl_packet_parser::is_hdl_frame_seam(int current_packet_azimuth, int previous_packet_azimuth) const
+{
+  return (hdl_framing_mode_ == HDLFraming_Rotation) &&
+      ((hdl_frame_seam_azimuth_ <= 0) ?
+          current_packet_azimuth < previous_packet_azimuth :
+          previous_packet_azimuth < hdl_frame_seam_azimuth_ && current_packet_azimuth >= hdl_frame_seam_azimuth_);
 }
 
 int c_hdl_packet_parser::last_known_azimuth() const
@@ -462,7 +468,6 @@ bool c_hdl_packet_parser::precompute_correction_tables()
   return true;
 }
 
-
 bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
 {
   if( lidar_specification_.lasers.size() != 16 ) {
@@ -520,7 +525,7 @@ bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
       }
     }
 
-    if( frames.empty() || (hdl_framing_mode_ == HDLFraming_Rotation && current_azimuth < last_known_azimuth_) ) {
+    if( frames.empty() || is_hdl_frame_seam(current_azimuth, last_known_azimuth_) ) {
       frames.emplace_back(std::make_shared<c_lidar_frame>());
     }
 
@@ -671,7 +676,7 @@ bool c_hdl_packet_parser::parse_vlp32(const HDLDataPacket * dataPacket)
       }
     }
 
-    if( frames.empty() || (hdl_framing_mode_ == HDLFraming_Rotation && current_azimuth < last_known_azimuth_) ) {
+    if( frames.empty() || is_hdl_frame_seam(current_azimuth, last_known_azimuth_) ) {
       frames.emplace_back(std::make_shared<c_lidar_frame>());
     }
 
@@ -800,7 +805,7 @@ bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
       }
     }
 
-    if( frames.empty() || (hdl_framing_mode_ == HDLFraming_Rotation && current_azimuth < last_known_azimuth_) ) {
+    if( frames.empty() || is_hdl_frame_seam(current_azimuth, last_known_azimuth_) ) {
       frames.emplace_back(std::make_shared<c_lidar_frame>());
     }
 
@@ -934,7 +939,7 @@ bool c_hdl_packet_parser::parse_hdl64(const HDLDataPacket * dataPacket)
       }
     }
 
-    if( frames.empty() || (hdl_framing_mode_ == HDLFraming_Rotation && current_azimuth < last_known_azimuth_) ) {
+    if( frames.empty() || is_hdl_frame_seam(current_azimuth, last_known_azimuth_) ) {
       frames.emplace_back(std::make_shared<c_lidar_frame>());
     }
 
@@ -1178,7 +1183,7 @@ bool c_hdl_packet_parser::parse_vls128(const HDLDataPacket * dataPacket)
       return false;
     }
 
-    if( frames.empty() || (hdl_framing_mode_ == HDLFraming_Rotation && current_azimuth < last_known_azimuth_) ) {
+    if( frames.empty() || is_hdl_frame_seam(current_azimuth, last_known_azimuth_) ) {
       frames.emplace_back(std::make_shared<c_lidar_frame>());
     }
 

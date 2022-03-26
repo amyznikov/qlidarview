@@ -55,6 +55,16 @@ enum HDLFramingMode c_hdl_pcap_file_loader::hdl_framing_mode() const
   return hdl_parser_.hdl_framing_mode();
 }
 
+void c_hdl_pcap_file_loader::set_hdl_frame_seam_azimuth(double azimuth_in_degrees)
+{
+  hdl_parser_.set_hdl_frame_seam_azimuth(azimuth_in_degrees);
+}
+
+double c_hdl_pcap_file_loader::hdl_frame_seam_azimuth() const
+{
+  return hdl_parser_.hdl_frame_seam_azimuth();
+}
+
 void c_hdl_pcap_file_loader::close()
 {
   pcap_.close();

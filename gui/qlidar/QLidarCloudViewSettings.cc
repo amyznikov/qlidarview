@@ -46,13 +46,27 @@ QLidarCloudViewSettings::QLidarCloudViewSettings(QWidget * parent)
         emit framingModeChanged();
       });
 
-  lidarDsplayAzimuthalResolution_ctl = add_numeric_box<double>("range image resolution [deg/pix]",
+  hdlFrameSeamAzimuth_ctl = add_numeric_box<double>("Frame seam azimuth [deg]",
+      [this](double v) {
+        save_parameter(PREFIX, "hdlFrameSeamAzimuth", v);
+        emit hdlFrameSeamAzimuthChanged(v);
+      });
+
+
+  lidarDsplayAzimuthalResolution_ctl = add_numeric_box<double>("Image resolution [deg/pix]",
       [this](double v) {
         if ( v > 0 ) {
           save_parameter(PREFIX, "lidarDsplayAzimuthalResolution", v);
-          emit lidarDsplayAzimuthalResolutionChanged(v);
+          emit lidarDisplayAzimuthalResolutionChanged(v);
         }
       });
+
+  lidarDsplayStartAzimuth_ctl = add_numeric_box<double>("start azimuth [deg]",
+      [this](double v) {
+        save_parameter(PREFIX, "lidarDsplayStartAzimuth", v);
+        emit lidarDisplayStartAzimuthChanged(v);
+      });
+
 }
 
 void QLidarCloudViewSettings::setCloudViewer(QLidarCloudView * v)
@@ -91,10 +105,24 @@ HDLFramingMode QLidarCloudViewSettings::hdlFramingMode() const
   return framingMode_crl->currentItem();
 }
 
-double QLidarCloudViewSettings::lidarDsplayAzimuthalResolution() const
+double QLidarCloudViewSettings::hdlFrameSeamAzimuth() const
 {
   double value = -1;
+  fromString(hdlFrameSeamAzimuth_ctl->text(), &value);
+  return value;
+}
+
+double QLidarCloudViewSettings::lidarDsplayAzimuthalResolution() const
+{
+  double value = 0.2;
   fromString(lidarDsplayAzimuthalResolution_ctl->text(), &value);
+  return value;
+}
+
+double QLidarCloudViewSettings::lidarDsplayStartAzimuth() const
+{
+  double value = 180;
+  fromString(lidarDsplayStartAzimuth_ctl->text(), &value);
   return value;
 }
 
@@ -129,12 +157,26 @@ void QLidarCloudViewSettings::onload(QSettings & settings)
       framingMode_crl->setCurrentItem(v);
     }
 
+    double hdlFrameSeamAzimuth = 0;
+    if( load_parameter(settings, PREFIX, "hdlFrameSeamAzimuth", &hdlFrameSeamAzimuth) ) {
+      hdlFrameSeamAzimuth_ctl->setValue(hdlFrameSeamAzimuth);
+    }
+
     double lidarDsplayAzimuthalResolution = 0.2;
     load_parameter(settings, PREFIX, "lidarDsplayAzimuthalResolution", &lidarDsplayAzimuthalResolution);
     if ( lidarDsplayAzimuthalResolution <= 0 ) {
       lidarDsplayAzimuthalResolution = 0.2;
     }
     lidarDsplayAzimuthalResolution_ctl->setValue(lidarDsplayAzimuthalResolution);
+
+
+    double lidarDsplayStartAzimuth = 180;
+    load_parameter(settings, PREFIX, "lidarDsplayStartAzimuth", &lidarDsplayStartAzimuth);
+    if ( lidarDsplayStartAzimuth < 0 ) {
+      lidarDsplayStartAzimuth = 0;
+    }
+    lidarDsplayStartAzimuth_ctl->setValue(lidarDsplayStartAzimuth);
+
   }
 
 }

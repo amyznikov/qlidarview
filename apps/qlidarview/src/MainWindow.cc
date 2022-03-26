@@ -293,6 +293,9 @@ void MainWindow::openLidarFile(const QString & abspath)
       lidar_frame_loader->set_hdl_framing_mode(
           cloudViewSettings->hdlFramingMode());
 
+      lidar_frame_loader->set_hdl_frame_seam_azimuth(
+          cloudViewSettings->hdlFrameSeamAzimuth());
+
       const c_lidar_frame::sptr first_frame =
           lidar_frame_loader->load_next_frame();
 
@@ -489,10 +492,21 @@ void MainWindow::setupCloudViewSettingsDock()
         }
       });
 
-  connect(cloudViewSettings, &QLidarCloudViewSettings::lidarDsplayAzimuthalResolutionChanged,
+  connect(cloudViewSettings, &QLidarCloudViewSettings::lidarDisplayAzimuthalResolutionChanged,
       this, &ThisClass::setLidarDisplayAzimuthalResolution);
 
+  connect(cloudViewSettings, &QLidarCloudViewSettings::lidarDisplayStartAzimuthChanged,
+      this, &ThisClass::setLidarDisplayStartAzimuth);
+
+  connect(cloudViewSettings, &QLidarCloudViewSettings::hdlFrameSeamAzimuthChanged,
+      [this](double v) {
+        if ( lidar_frame_loader ) {
+          lidar_frame_loader->set_hdl_frame_seam_azimuth(v);
+        }
+      });
+
   setLidarDisplayAzimuthalResolution(cloudViewSettings->lidarDsplayAzimuthalResolution());
+  setLidarDisplayStartAzimuth(cloudViewSettings->lidarDsplayStartAzimuth());
 }
 
 void MainWindow::onShowGlobalOptionsMenuActionClicked(bool checked)
@@ -514,6 +528,12 @@ void MainWindow::setLidarDisplayAzimuthalResolution(double v)
     lidarDisplays()->set_azimuthal_resolution(v);
   }
 }
+
+void MainWindow::setLidarDisplayStartAzimuth(double v)
+{
+  lidarDisplays()->set_start_azimuth(v);
+}
+
 
 
 void MainWindow::onSaveCurrentRangeImageAs()

@@ -41,6 +41,8 @@ public:
 protected:
   void init() override;
   void draw() override;
+  void keyPressEvent(QKeyEvent *) override;
+  void keyReleaseEvent(QKeyEvent *e) override;
 
 protected slots:
   void updatePointCloud();

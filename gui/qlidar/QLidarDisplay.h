@@ -26,6 +26,9 @@ public:
   void set_azimuthal_resolution(double degrees_per_pixel);
   double azimuthal_resolution() const;
 
+  void set_start_azimuth(double start_azimuth_in_degrees);
+  double start_azimuth() const;
+
   void set_num_lasers(int n);
   int num_lasers() const;
 
@@ -83,6 +86,7 @@ public:
 
   void set_current_frame(const c_lidar_frame::sptr & );
   void set_azimuthal_resolution(double deg_per_pix);
+  void set_start_azimuth(double start_azimuth_in_degrees);
   void set_num_lasers(int n);
 
 

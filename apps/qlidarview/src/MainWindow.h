@@ -50,6 +50,7 @@ public slots:
   void onOpenLidarFile();
   void openLidarFile(const QString & abspath);
   void setLidarDisplayAzimuthalResolution(double v);
+  void setLidarDisplayStartAzimuth(double v);
   void onSaveCurrentRangeImageAs();
   void onSaveCurrentRangeDisplayImageAs();
 

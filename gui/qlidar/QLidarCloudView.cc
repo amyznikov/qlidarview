@@ -153,4 +153,24 @@ void QLidarCloudView::draw()
   glEnd(/*GL_POINTS*/);
 }
 
+void QLidarCloudView::keyPressEvent(QKeyEvent * e)
+{
+  if ( e->key() == Qt::Key_Escape ) {
+    QWidget::keyPressEvent(e);
+  }
+  else {
+    Base::keyPressEvent(e);
+  }
+}
+
+void QLidarCloudView::keyReleaseEvent(QKeyEvent * e)
+{
+  if( e->key() == Qt::Key_Escape ) {
+    QWidget::keyReleaseEvent(e);
+  }
+  else {
+    Base::keyReleaseEvent(e);
+  }
+}
+
 

@@ -35,6 +35,9 @@ public:
   void set_hdl_framing_mode(enum HDLFramingMode v) override;
   enum HDLFramingMode hdl_framing_mode() const override;
 
+  void set_hdl_frame_seam_azimuth(double azimuth_in_degrees) override;
+  double hdl_frame_seam_azimuth() const override;
+
   c_lidar_frame::sptr load_next_frame() override;
 
 protected:

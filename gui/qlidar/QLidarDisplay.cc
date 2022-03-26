@@ -29,9 +29,20 @@ double QLidarDisplay::azimuthal_resolution() const
   return display_.azimuthal_resolution();
 }
 
+void QLidarDisplay::set_start_azimuth(double start_azimuth_in_degrees)
+{
+  display_.set_start_azimuth(start_azimuth_in_degrees);
+  emit update();
+}
+
+double QLidarDisplay::start_azimuth() const
+{
+  return display_.start_azimuth();
+}
+
 void QLidarDisplay::set_num_lasers(int n)
 {
-  return display_.set_num_lasers(n);
+  display_.set_num_lasers(n);
 }
 
 int QLidarDisplay::num_lasers() const
@@ -42,6 +53,7 @@ int QLidarDisplay::num_lasers() const
 void QLidarDisplay::set_colormap(COLORMAP v)
 {
   display_.set_colormap(v);
+  emit update();
 }
 
 COLORMAP QLidarDisplay::colormap() const
@@ -188,6 +200,13 @@ void QLidarFrameVisualization::set_azimuthal_resolution(double deg_per_pix)
 {
   for( const auto & p : displays ) {
     p.second->set_azimuthal_resolution(deg_per_pix);
+  }
+}
+
+void QLidarFrameVisualization::set_start_azimuth(double start_azimuth_in_degrees)
+{
+  for( const auto & p : displays ) {
+    p.second->set_start_azimuth(start_azimuth_in_degrees);
   }
 }
 

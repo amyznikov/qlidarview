@@ -525,7 +525,6 @@ void QLidarDisplaySettingsWidget::onColormapCtlClicked()
       display->save_paramters();
       updateHistogramLevels();
       updateColormapPixmap();
-      emit display->update();
     }
   }
 }

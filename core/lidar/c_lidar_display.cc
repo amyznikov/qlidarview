@@ -15,8 +15,8 @@ template<>
 const c_enum_member* members_of<LIDAR_DISPLAY_TYPE>()
 {
   static constexpr c_enum_member members[] = {
-      { LIDAR_DISPLAY_DEPTH, "DEPTH", "" },
       { LIDAR_DISPLAY_DISTANCE, "DISTANCE", "" },
+      { LIDAR_DISPLAY_DEPTH, "DEPTH", "" },
       { LIDAR_DISPLAY_INTENSITY, "INTENSITY", "" },
       { LIDAR_DISPLAY_HEIGHT, "HEIGHT", "" },
       { LIDAR_DISPLAY_AZIMUTH, "AZIMUTH", "" },
@@ -42,12 +42,17 @@ const c_enum_member* members_of<LIDAR_DISPLAY_TYPE>()
 static inline bool project_to_range_image(const c_lidar_point & p,
     const cv::Size & image_size,
     double azimuthal_resolution_radians_per_pixel,
+    double start_azimuth_in_radians,
     int * outr,
     int * outc)
 {
   const int r = image_size.height - p.laser_ring - 1;
   if( r >= 0 && r < image_size.height ) {
-    int c = (int) (p.azimuth / azimuthal_resolution_radians_per_pixel);
+    double a = p.azimuth - start_azimuth_in_radians;
+    if ( a < 0 ) {
+      a += 2 * CV_PI;
+    }
+    const int c = (int) (a / azimuthal_resolution_radians_per_pixel);
     if( c >= 0 && c < image_size.width ) {
       *outr = r;
       *outc = c;
@@ -184,6 +189,16 @@ double c_lidar_display::azimuthal_resolution() const
   return azimuthal_resolution_;
 }
 
+void c_lidar_display::set_start_azimuth(double start_azimuth_in_degrees)
+{
+  start_azimuth_ = start_azimuth_in_degrees;
+}
+
+double c_lidar_display::start_azimuth() const
+{
+  return start_azimuth_;
+}
+
 void c_lidar_display::set_num_lasers(int v)
 {
   num_lasers_ = v;
@@ -288,8 +303,9 @@ void c_lidar_display::create_aliasing_image_(const c_lidar_frame * frame,
     return;
   }
 
-  const double radians_per_pixel = azimuthal_resolution_ * CV_PI / 180;
-  const cv::Size image_size((int) (2 * CV_PI / radians_per_pixel), num_lasers_);
+  const double start_azimuth = start_azimuth_ * CV_PI / 180;
+  const double azimuthal_resolution = azimuthal_resolution_ * CV_PI / 180;
+  const cv::Size image_size((int) (2 * CV_PI / azimuthal_resolution), num_lasers_);
 
   cv::Mat1w image;
   cv::Mat3b display_image;
@@ -301,7 +317,7 @@ void c_lidar_display::create_aliasing_image_(const c_lidar_frame * frame,
   }
 
   for( const c_lidar_point &p : frame->points ) {
-    if( project_to_range_image(p, image_size, radians_per_pixel, &r, &c) ) {
+    if( project_to_range_image(p, image_size, azimuthal_resolution, start_azimuth, &r, &c) ) {
       if( !image.empty() ) {
         image[r][c]++;
       }
@@ -363,8 +379,9 @@ void c_lidar_display::create_range_image(const c_lidar_frame * frame,
     return;
   }
 
-  const double radians_per_pixel = azimuthal_resolution_ * CV_PI / 180;
-  const cv::Size image_size((int) (2 * CV_PI / radians_per_pixel), num_lasers_);
+  const double start_azimuth = start_azimuth_ * CV_PI / 180;
+  const double azimuthal_resolution = azimuthal_resolution_ * CV_PI / 180;
+  const cv::Size image_size((int) (2 * CV_PI / azimuthal_resolution), num_lasers_);
 
   cv::Mat1f range_image;
   cv::Mat3b display_image;
@@ -403,7 +420,7 @@ void c_lidar_display::create_range_image(const c_lidar_frame * frame,
     const LidarDataFunc & func = m->second;
 
     for( const c_lidar_point &p : frame->points ) {
-      if( project_to_range_image(p, image_size, radians_per_pixel, &r, &c) ) {
+      if( project_to_range_image(p, image_size, azimuthal_resolution, start_azimuth, &r, &c) ) {
 
         const double value = func(p) - bias;
 
@@ -533,12 +550,13 @@ void c_lidar_display::create_point_cloud(const c_lidar_frame * frame,
 
         create_aliasing_image_(frame, cv::noArray(), display_image);
 
-        const double radians_per_pixel = azimuthal_resolution_ * CV_PI / 180;
+        const double start_azimuth = start_azimuth_ * CV_PI / 180;
+        const double azimuthal_resolution = azimuthal_resolution_ * CV_PI / 180;
         const cv::Size image_size = display_image.size();
         int r, c;
 
         for( const c_lidar_point &p : frame->points ) {
-          if( project_to_range_image(p, display_image.size(), radians_per_pixel, &r, &c) ) {
+          if( project_to_range_image(p, image_size, azimuthal_resolution, start_azimuth, &r, &c) ) {
             colors->emplace_back(display_image[r][c]);
           }
         }

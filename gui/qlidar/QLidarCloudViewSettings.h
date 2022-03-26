@@ -31,11 +31,15 @@ public:
 
   // these are temporary controls until I add dedicated settings widgets
   HDLFramingMode hdlFramingMode() const;
+  double hdlFrameSeamAzimuth() const;
   double lidarDsplayAzimuthalResolution() const;
+  double lidarDsplayStartAzimuth() const;
 
 signals:
   void framingModeChanged();
-  void lidarDsplayAzimuthalResolutionChanged(double v);
+  void hdlFrameSeamAzimuthChanged(double v);
+  void lidarDisplayAzimuthalResolutionChanged(double v);
+  void lidarDisplayStartAzimuthChanged(double v);
 
 protected:
   void onload(QSettings & settings) override;
@@ -48,7 +52,9 @@ protected:
   QNumberEditBox * sceneOrigin_ctl = Q_NULLPTR;
   QNumberEditBox * pointSize_ctl = Q_NULLPTR;
   QEnumComboBox<HDLFramingMode> * framingMode_crl = Q_NULLPTR;
+  QNumberEditBox * hdlFrameSeamAzimuth_ctl = Q_NULLPTR;
   QNumberEditBox * lidarDsplayAzimuthalResolution_ctl = Q_NULLPTR;
+  QNumberEditBox * lidarDsplayStartAzimuth_ctl = Q_NULLPTR;
 };
 
 class QCloudViewSettingsDialogBox
