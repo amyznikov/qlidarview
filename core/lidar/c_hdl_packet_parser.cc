@@ -251,34 +251,42 @@ bool c_hdl_packet_parser::precompute_correction_tables()
   switch (sensor_type()) {
 
   case HDLSensor_VLP16: {
+    /*
+     * Copied from vtkVelodyneLegacyPacketInterpreter.cxx
+     * */
+    static const auto VLP16AdjustTimeStamp =
+        [](int firingblock, int channelNumber, int firingwithinblock, bool isDualReturnMode) -> double {
+          return isDualReturnMode ?
+            (firingblock / 2 * 110.592) + (channelNumber * 2.304) + (firingwithinblock * 55.296) :
+            (firingblock * 110.592) + (channelNumber * 2.304) + (firingwithinblock * 55.296);
+        };
 
-    constexpr uint nblocks = 12;
-    constexpr uint nfirings = 32;
+    const bool dual_mode =
+        !is_single_return_mode(return_mode_);
 
-    constexpr double full_firing_cycle = 55.296 * 1e-6; // seconds
-    constexpr double single_firing = 2.304 * 1e-6; // seconds
+    precomputed_timing_offsets_.resize(
+        HDL_DATA_BLOCKS_PER_PKT + 2);
 
-    const bool dual_mode = !is_single_return_mode(return_mode_);
+    for( int block = 0; block < HDL_DATA_BLOCKS_PER_PKT + 2; ++block ) {
 
-    int dataBlockIndex, dataPointIndex;
+      precomputed_timing_offsets_[block].resize(
+          HDL_LASERS_PER_DATA_BLOCK);
 
-    precomputed_timing_offsets_.resize(nblocks);
-    for( uint block = 0; block < nblocks; ++block ) {
-      precomputed_timing_offsets_[block].resize(nfirings);
-    }
+      for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
 
-    for( uint block = 0; block < nblocks; ++block ) {
-      for( uint firing = 0; firing < nfirings; ++firing ) {
-        if( dual_mode ) {
-          dataBlockIndex = (block - (block % 2)) + (firing / 16);
-        }
-        else {
-          dataBlockIndex = (block * 2) + (firing / 16);
-        }
-        dataPointIndex = firing % 16;
-        precomputed_timing_offsets_[block][firing] =
-            (full_firing_cycle * dataBlockIndex) +
-                (single_firing * dataPointIndex);
+        const int channelNumber = K < 16 ?
+            K :
+            K - 16;
+
+        const int firingWithinBlock = K < 16 ?
+            0 :
+            1;
+
+        precomputed_timing_offsets_[block][K] =
+            VLP16AdjustTimeStamp(block,
+                channelNumber,
+                firingWithinBlock,
+                dual_mode);
       }
     }
 
@@ -288,33 +296,32 @@ bool c_hdl_packet_parser::precompute_correction_tables()
   case HDLSensor_VLP32AB:
     case HDLSensor_VLP32C: {
 
-    constexpr uint nblocks = 12;
-    constexpr uint nfirings = 32;
+    /*
+     * Copied from vtkVelodyneLegacyPacketInterpreter.cxx
+     * */
+    static const auto VLP32AdjustTimeStamp =
+        [](int firingblock, int dsr,
+            bool isDualReturnMode) -> double {
+              return isDualReturnMode ?
+                  (firingblock / 2 * 55.296) + (dsr / 2) * 2.304 :
+                  (firingblock * 55.296) + (dsr / 2) * 2.304;
+            };
 
-    constexpr double full_firing_cycle = 55.296 * 1e-6; // seconds
-    constexpr double single_firing = 2.304 * 1e-6; // seconds
+    const bool dual_mode =
+        !is_single_return_mode(return_mode_);
 
-    const bool dual_mode = !is_single_return_mode(return_mode_);
+    precomputed_timing_offsets_.resize(
+        HDL_DATA_BLOCKS_PER_PKT + 2);
 
-    int dataBlockIndex, dataPointIndex;
+    for( int block = 0; block < HDL_DATA_BLOCKS_PER_PKT + 2; ++block ) {
 
-    precomputed_timing_offsets_.resize(nblocks);
-    for( uint block = 0; block < nblocks; ++block ) {
-      precomputed_timing_offsets_[block].resize(nfirings);
-    }
+      precomputed_timing_offsets_[block].resize(
+          HDL_LASERS_PER_DATA_BLOCK);
 
-    for( size_t block = 0; block < nblocks; ++block ) {
-      for( size_t firing = 0; firing < nfirings; ++firing ) {
-        if( dual_mode ) {
-          dataBlockIndex = block / 2;
-        }
-        else {
-          dataBlockIndex = block;
-        }
-        dataPointIndex = firing / 2;
-        precomputed_timing_offsets_[block][firing] =
-            (full_firing_cycle * dataBlockIndex) +
-                (single_firing * dataPointIndex);
+      for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
+
+        precomputed_timing_offsets_[block][K] =
+            VLP32AdjustTimeStamp(block, K, dual_mode);
       }
     }
 
@@ -322,36 +329,34 @@ bool c_hdl_packet_parser::precompute_correction_tables()
   }
 
   case HDLSensor_HDL32E: {
+    /*
+     * Copied from vtkVelodyneLegacyPacketInterpreter.cxx
+     * */
+    static const auto HDL32AdjustTimeStamp =
+        [](int firingblock, int dsr, const bool isDualReturnMode) -> double {
+          return isDualReturnMode ?
+              (firingblock / 2 * 46.08) + (dsr * 1.152) :
+              (firingblock * 46.08) + (dsr * 1.152);
+        };
 
-    constexpr uint nblocks = 12;
-    constexpr uint nfirings = 32;
+    const bool dual_mode =
+        !is_single_return_mode(return_mode_);
 
-    constexpr double full_firing_cycle = 46.080 * 1e-6; // seconds
-    constexpr double single_firing = 1.152 * 1e-6; // seconds
+    precomputed_timing_offsets_.resize(
+        HDL_DATA_BLOCKS_PER_PKT + 2);
 
-    const bool dual_mode = !is_single_return_mode(return_mode_);
+    for( int block = 0; block < HDL_DATA_BLOCKS_PER_PKT + 2; ++block ) {
 
-    double dataBlockIndex, dataPointIndex;
+      precomputed_timing_offsets_[block].resize(
+          HDL_LASERS_PER_DATA_BLOCK);
 
-    precomputed_timing_offsets_.resize(nblocks);
-    for( uint block = 0; block < nblocks; ++block ) {
-      precomputed_timing_offsets_[block].resize(nfirings);
-    }
+      for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
 
-    for( size_t block = 0; block < nblocks; ++block ) {
-      for( size_t firing = 0; firing < nfirings; ++firing ) {
-        if( dual_mode ) {
-          dataBlockIndex = block / 2;
-        }
-        else {
-          dataBlockIndex = block;
-        }
-        dataPointIndex = firing / 2;
-        precomputed_timing_offsets_[block][firing] =
-            (full_firing_cycle * dataBlockIndex) +
-                (single_firing * dataPointIndex);
+        precomputed_timing_offsets_[block][K] =
+            HDL32AdjustTimeStamp(block, K, dual_mode);
       }
     }
+
     break;
   }
 
@@ -382,10 +387,13 @@ bool c_hdl_packet_parser::precompute_correction_tables()
     const bool dual_mode =
         !is_single_return_mode(return_mode_);
 
-    precomputed_timing_offsets_.resize(HDL_DATA_BLOCKS_PER_PKT + 4);
+    precomputed_timing_offsets_.resize(
+        HDL_DATA_BLOCKS_PER_PKT + 4);
+
     for( int block = 0; block < HDL_DATA_BLOCKS_PER_PKT + 4; ++block ) {
 
-      precomputed_timing_offsets_[block].resize(HDL_LASERS_PER_DATA_BLOCK);
+      precomputed_timing_offsets_[block].resize(
+          HDL_LASERS_PER_DATA_BLOCK);
 
       for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
 
@@ -457,16 +465,6 @@ bool c_hdl_packet_parser::precompute_correction_tables()
 
 bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
 {
-  /*
-   * Copied from vtkVelodyneLegacyPacketInterpreter.cxx
-   * */
-  static const auto VLP16AdjustTimeStamp =
-      [](int firingblock, int channelNumber, int firingwithinblock, bool isDualReturnMode) -> double {
-        return isDualReturnMode ?
-          (firingblock / 2 * 110.592) + (channelNumber * 2.304) + (firingwithinblock * 55.296) :
-          (firingblock * 110.592) + (channelNumber * 2.304) + (firingwithinblock * 55.296);
-      };
-
   if( lidar_specification_.lasers.size() != 16 ) {
     CF_ERROR("Invalid call: lasers_table was not correctly initialized for sensor '%s'. "
         "lidar_specification.lasers.size=%zu",
@@ -533,10 +531,10 @@ bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
         frames.back();
 
     const double blockdsr0 =
-        VLP16AdjustTimeStamp(block, 0, 0, dual_mode);
+        precomputed_timing_offsets_[block][0];
 
     const double nextblockdsr0 =
-        VLP16AdjustTimeStamp(block + (dual_mode ? 2 : 1), 0, 0, dual_mode);
+        precomputed_timing_offsets_[block + (dual_mode ? 2 : 1)][0];
 
     for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
 
@@ -562,7 +560,7 @@ bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
               0;
 
       const double timestamp_adjustment =
-          VLP16AdjustTimeStamp(block, channelNumber, firingWithinBlock, dual_mode);
+          precomputed_timing_offsets_[block][K];
 
       const double azimuth_adjustment =
           azimuth_gap * ((timestamp_adjustment - blockdsr0) / (nextblockdsr0 - blockdsr0));
@@ -618,18 +616,6 @@ bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
 
 bool c_hdl_packet_parser::parse_vlp32(const HDLDataPacket * dataPacket)
 {
-  /*
-   * Copied from vtkVelodyneLegacyPacketInterpreter.cxx
-   * */
-  static const auto VLP32AdjustTimeStamp =
-      [](int firingblock, int dsr,
-          bool isDualReturnMode) -> double
-          {
-            return isDualReturnMode ?
-            (firingblock / 2 * 55.296) + (dsr / 2) * 2.304 :
-            (firingblock * 55.296) + (dsr / 2) * 2.304;
-          };
-
   if( lidar_specification_.lasers.size() != 32 ) {
     CF_ERROR("Invalid call: lasers_table was not correctly initialized for sensor '%s'. "
         "lidar_specification.lasers.size=%zu",
@@ -696,11 +682,10 @@ bool c_hdl_packet_parser::parse_vlp32(const HDLDataPacket * dataPacket)
         frames.back();
 
     const double blockdsr0 =
-        VLP32AdjustTimeStamp(block, 0, dual_mode);
+        precomputed_timing_offsets_[block][0];
 
     const double nextblockdsr0 =
-        VLP32AdjustTimeStamp(block + (dual_mode ?
-            2 : 1), 0, dual_mode);
+        precomputed_timing_offsets_[block + (dual_mode ?2 : 1)][0];
 
     for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
 
@@ -719,9 +704,7 @@ bool c_hdl_packet_parser::parse_vlp32(const HDLDataPacket * dataPacket)
               0;
 
       const double timestamp_adjustment =
-          K == 0 ?
-              blockdsr0 :
-              VLP32AdjustTimeStamp(block, K, dual_mode);
+          precomputed_timing_offsets_[block][K];
 
       const double azimuth_adjustment =
           azimuth_gap * ((timestamp_adjustment - blockdsr0) / (nextblockdsr0 - blockdsr0));
@@ -760,24 +743,8 @@ bool c_hdl_packet_parser::parse_vlp32(const HDLDataPacket * dataPacket)
   return true;
 }
 
-/**
- * HDL32E.pdf
- *
- * 9.3.2 Data Packet Structure
- * 9.5 Precision Azimuth Calculation
- *
- */
 bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
 {
-  /*
-   * Copied from vtkVelodyneLegacyPacketInterpreter.cxx
-   * */
-
-  static const auto HDL32AdjustTimeStamp =
-      [](int firingblock, int dsr, const bool isDualReturnMode) -> double  {
-    return isDualReturnMode ? (firingblock / 2 * 46.08) + (dsr * 1.152) : (firingblock * 46.08) + (dsr * 1.152);
-  };
-
   if( lidar_specification_.lasers.size() != 32 ) {
     CF_ERROR("Invalid call: lasers_table was not correctly initialized for sensor '%s'. "
         "lidar_specification.lasers.size=%zu",
@@ -845,11 +812,10 @@ bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
 
 
     const double blockdsr0 =
-        HDL32AdjustTimeStamp(block, 0, dual_mode);
+        precomputed_timing_offsets_[block][0];
 
     const double nextblockdsr0 =
-        HDL32AdjustTimeStamp(block + (dual_mode ?
-            2 : 1), 0, dual_mode);
+        precomputed_timing_offsets_[block + (dual_mode ? 2 : 1)][0];
 
     for( int K = 0; K < HDL_LASERS_PER_DATA_BLOCK; ++K ) {
 
@@ -868,9 +834,7 @@ bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
               0;
 
       const double timestamp_adjustment =
-          K == 0 ?
-              blockdsr0 :
-              HDL32AdjustTimeStamp(block, K, dual_mode);
+          precomputed_timing_offsets_[block][K];
 
       const double azimuth_adjustment =
           azimuth_gap * ((timestamp_adjustment - blockdsr0) / (nextblockdsr0 - blockdsr0));
@@ -895,8 +859,8 @@ bool c_hdl_packet_parser::parse_hdl32(const HDLDataPacket * dataPacket)
           .pkt = pktcounter_,
           .datablock = block,
           .flags = 0,
-          .azimuth = (double) (azimuth * M_PI / 180),
-          .elevation = (double) (laser.vert_correction * M_PI / 180),
+          .azimuth = azimuth * M_PI / 180,
+          .elevation = laser.vert_correction * M_PI / 180,
           .distance = distance,
           .intensity = laserReturn.intensity / 255.,
           .timestamp = timestamp,
@@ -1179,10 +1143,6 @@ bool c_hdl_packet_parser::parse_vls128(const HDLDataPacket * dataPacket)
     const HDLDataBlock & current_block =
         dataPacket->dataBlocks[block];
 
-    //    const int current_firing_sequence =
-    //        dual_mode ? 0 :
-    //            block / 4;
-
     const int current_azimuth =
         current_block.azimuth;
 
@@ -1285,46 +1245,6 @@ bool c_hdl_packet_parser::parse_vls128(const HDLDataPacket * dataPacket)
 
 
 //
-//
-//static double VLP16AdjustTimeStamp(int firingblock, int channelNumber, int firingwithinblock,
-//    const bool isDualReturnMode)
-//{
-//  return isDualReturnMode ?
-//      (firingblock / 2 * 110.592) + (channelNumber * 2.304) + (firingwithinblock * 55.296) :
-//      (firingblock * 110.592) + (channelNumber * 2.304) + (firingwithinblock * 55.296);
-//}
-//
-//static double VLP32AdjustTimeStamp(int firingblock, int dsr, const bool isDualReturnMode)
-//{
-//  return isDualReturnMode ?
-//      (firingblock / 2 * 55.296) + (dsr / 2) * 2.304 :
-//      (firingblock * 55.296) + (dsr / 2) * 2.304;
-//}
-//
-//static double HDL32AdjustTimeStamp(int firingblock, int dsr, const bool isDualReturnMode)
-//{
-//  return isDualReturnMode ?
-//      (firingblock / 2 * 46.08) + (dsr * 1.152) :
-//      (firingblock * 46.08) + (dsr * 1.152);
-//}
-//
-//static double HDL64EAdjustTimeStamp(int firingDataBlockIdx, int dsrBase32, const bool isDualReturnMode)
-//{
-//  const int dsrBase32Reversed = HDL_LASER_PER_FIRING - dsrBase32 - 1;
-//  const int firingDataBlockReversed = HDL_FIRING_PER_PKT - firingDataBlockIdx - 1;
-//
-//  if (!isDualReturnMode) {
-//    static constexpr double TimeOffsetMicroSec[4] = { 2.34, 3.54, 4.74, 6.0 };
-//    return (std::floor(static_cast<double>(firingDataBlockReversed) / 2.0) * 48.0) +
-//      TimeOffsetMicroSec[(dsrBase32Reversed % 4)] + (dsrBase32Reversed / 4) * TimeOffsetMicroSec[3];
-//  }
-//  else {
-//    static constexpr double TimeOffsetMicroSec[4] = { 3.5, 4.7, 5.9, 7.2 };
-//    return (std::floor(static_cast<double>(firingDataBlockReversed) / 4.0) * 57.6) +
-//      TimeOffsetMicroSec[(dsrBase32Reversed % 4)] + (dsrBase32Reversed / 4) * TimeOffsetMicroSec[3];
-//  }
-//}
-//
 //static double VLS128AdjustTimeStamp(int firingDataBlockIdx, int dsrBase32, const bool isDualReturnMode,
 //    int extDataPacketType)
 //{
@@ -1357,435 +1277,4 @@ bool c_hdl_packet_parser::parse_vls128(const HDLDataPacket * dataPacket)
 //}
 //
 
-//
-//void c_hdl_packet_parser::process_firing(const HDL_FiringData * firingData,
-//    int multiBlockFiringLaserIdOffset,
-//    int firingDataBlockIdx,
-//    int azimuthDiff, uint64_t timestamp,
-//    uint rawtime,
-//    bool isThisFiringDualReturnData,
-//    bool isDualReturnPacket,
-//    const HDL_FiringData * extData,
-//    int extDataPacketType)
-//{
-//  // First return block of a dual return packet: init last point of laser
-//  if( !isThisFiringDualReturnData && (!this->IsHDL64 || (this->IsHDL64 && ((firingDataBlockIdx % 4) == 0))) ) {
-//    this->FirstPointIdOfDualReturnPair = 0; // this->Points->GetNumberOfPoints();
-//  }
-//
-//
-//  uint16_t firingElevation100th =
-//      getElevation100th(*firingData);
-//
-//  CF_DEBUG("   firingDataBlockIdx=%d firingElevation100th=%u", firingDataBlockIdx, firingElevation100th);
-//
-//  for( int dsrBase32 = 0; dsrBase32 < HDL_LASER_PER_FIRING; ++dsrBase32 ) {
-//
-//    const uint8_t channelNumberOr_dsrBase32_forVLP16 =
-//        static_cast<uint8_t>(dsrBase32 + multiBlockFiringLaserIdOffset);
-//
-//    uint8_t channelNumber = channelNumberOr_dsrBase32_forVLP16;
-//    const uint16_t azimuth = getRotationalPosition(*firingData);
-//
-//    // Detect VLP-16 data and adjust laser id if necessary
-//    int firingWithinBlock = 0;
-//
-//    if( this->CalibrationReportedNumLasers == 16 ) {
-//
-//      if( multiBlockFiringLaserIdOffset != 0 ) {
-//        if( !this->alreadyWarnedForIgnoredHDL64FiringPacket ) {
-//          CF_WARNING("Error: Received a HDL-64 UPPERBLOCK firing packet with \n"
-//              "a VLP-16 calibration file. Ignoring the firing.");
-//          this->alreadyWarnedForIgnoredHDL64FiringPacket = true;
-//        }
-//        return;
-//      }
-//
-//      if( channelNumber >= 16 ) {
-//        channelNumber -= 16;
-//        firingWithinBlock = 1;
-//      }
-//    }
-//
-//
-//    // Interpolate azimuths and timestamps per laser within firing blocks
-//    double timestampadjustment = 0;
-//    int azimuthadjustment = 0;
-//
-//    if( this->UseIntraFiringAdjustment ) {
-//      double blockdsr0 = 0, nextblockdsr0 = 1;
-//      switch (this->CalibrationReportedNumLasers) {
-//      case 128:
-//      {
-//        timestampadjustment = VLS128AdjustTimeStamp(firingDataBlockIdx, dsrBase32, isDualReturnPacket,
-//            extDataPacketType);
-//
-//        if( isDualReturnPacket ) {
-//          // With VLS-128 dual return packets only one dsr0 per packet, so this method will be used to
-//          // ensure azimuthadjustment is correctly derived below
-//          if( extDataPacketType > HDL_EXT_MODE_NONE ) {
-//            nextblockdsr0 = VLS128AdjustTimeStamp(11, 32, isDualReturnPacket, extDataPacketType);
-//            blockdsr0 = VLS128AdjustTimeStamp(0, 0, isDualReturnPacket, extDataPacketType);
-//          }
-//          else {
-//            nextblockdsr0 = VLS128AdjustTimeStamp(7, 32, isDualReturnPacket, extDataPacketType);
-//            blockdsr0 = VLS128AdjustTimeStamp(0, 0, isDualReturnPacket, extDataPacketType);
-//          }
-//        }
-//        else {
-//          // dsr0 occurs every fourth block with VLS-128 single return packets
-//          nextblockdsr0 = VLS128AdjustTimeStamp((firingDataBlockIdx / 4) * 4 + 4, 0, isDualReturnPacket,
-//              extDataPacketType);
-//          blockdsr0 = VLS128AdjustTimeStamp((firingDataBlockIdx / 4) * 4, 0, isDualReturnPacket, extDataPacketType);
-//        }
-//        break;
-//      }
-//      case 64:
-//      {
-//        timestampadjustment = -HDL64EAdjustTimeStamp(firingDataBlockIdx, dsrBase32, isDualReturnPacket);
-//        nextblockdsr0 = -HDL64EAdjustTimeStamp(
-//            firingDataBlockIdx + (isDualReturnPacket ?
-//                4 : 2), 0, isDualReturnPacket);
-//        blockdsr0 = -HDL64EAdjustTimeStamp(firingDataBlockIdx, 0, isDualReturnPacket);
-//        break;
-//      }
-//      case 32:
-//      {
-//        if( this->ReportedSensor == HDLSensor_VLP32AB || this->ReportedSensor == HDLSensor_VLP32C ) {
-//          timestampadjustment = VLP32AdjustTimeStamp(firingDataBlockIdx, dsrBase32, isDualReturnPacket);
-//          nextblockdsr0 = VLP32AdjustTimeStamp(
-//              firingDataBlockIdx + (isDualReturnPacket ?
-//                  2 : 1), 0, isDualReturnPacket);
-//          blockdsr0 = VLP32AdjustTimeStamp(firingDataBlockIdx, 0, isDualReturnPacket);
-//        }
-//        else {
-//          timestampadjustment = HDL32AdjustTimeStamp(firingDataBlockIdx, dsrBase32, isDualReturnPacket);
-//          nextblockdsr0 = HDL32AdjustTimeStamp(
-//              firingDataBlockIdx + (isDualReturnPacket ?
-//                  2 : 1), 0, isDualReturnPacket);
-//          blockdsr0 = HDL32AdjustTimeStamp(firingDataBlockIdx, 0, isDualReturnPacket);
-//        }
-//        break;
-//      }
-//      case 16:
-//      {
-//        timestampadjustment =
-//            VLP16AdjustTimeStamp(firingDataBlockIdx, channelNumber, firingWithinBlock, isDualReturnPacket);
-//        nextblockdsr0 = VLP16AdjustTimeStamp(
-//            firingDataBlockIdx + (isDualReturnPacket ?
-//                2 : 1), 0, 0, isDualReturnPacket);
-//        blockdsr0 = VLP16AdjustTimeStamp(firingDataBlockIdx, 0, 0, isDualReturnPacket);
-//        break;
-//      }
-//
-//      default:
-//      {
-//        timestampadjustment = 0.0;
-//        blockdsr0 = 0.0;
-//        nextblockdsr0 = 1.0;
-//      }
-//      }
-//
-//      azimuthadjustment =
-//          std::round(azimuthDiff * ((timestampadjustment - blockdsr0) / (nextblockdsr0 - blockdsr0)));
-//
-//      timestampadjustment =
-//          std::round(timestampadjustment);
-//    }
-//
-//    if( (!this->IgnoreZeroDistances || firingData->laserReturns[dsrBase32].distance != 0.0) ) {
-//
-//      const uint16_t adjustedAzimuth =
-//          (36000 + (static_cast<int>(azimuth) + azimuthadjustment)) % 36000;
-//
-//      //CF_DEBUG("   azimuth=%u adjustedAzimuth=%u", azimuth, adjustedAzimuth);
-//
-//      push_firing_data(channelNumber,
-//          channelNumberOr_dsrBase32_forVLP16,
-//          adjustedAzimuth,
-//          firingElevation100th,
-//          timestamp + static_cast<uint64_t>(timestampadjustment),
-//          rawtime + static_cast<unsigned int>(timestampadjustment),
-//          &(firingData->laserReturns[dsrBase32]),
-//          isThisFiringDualReturnData,
-//          extDataPacketType,
-//          &(extData->laserReturns[dsrBase32]));
-//    }
-//  }
-//}
-//
-//
-//
-//void c_hdl_packet_parser::push_firing_data(uint8_t channelNumber,
-//    uint8_t channelNumberOr_dsrBase32_forVLP16,
-//    uint16_t azimuth,
-//    uint16_t firingElevation100th,
-//    uint64_t timestamp,
-//    uint rawtime,
-//    const HDL_LaserReturn * laserReturn,
-//    const bool isFiringDualReturnData,
-//    const int extDataPacketType,
-//    const HDL_LaserReturn * extData)
-//{
-//  azimuth %= 36000;
-//  const uint thisPointId = 0;// this->Points->GetNumberOfPoints();
-//  // double firingElevation = static_cast<double>(firingElevation100th) / 100.0;
-//
-//  // Compute raw position
-//  bool applyIntensityCorrection =
-//    this->WantIntensityCorrection && this->IsHDL64 && !(this->SensorPowerMode == HDL_CorrectionOn);
-//
-//  HDLRawValues rawValues(azimuth, firingElevation100th, laserReturn->distance, laserReturn->intensity);
-//
-//  CF_DEBUG("azimuth=%u firingElevation100th=%u distance=%u intensity=%u",
-//      azimuth, firingElevation100th, laserReturn->distance, laserReturn->intensity);
-//
-//
-//  HDLCorrectedValues correctedValues;
-//
-//  this->compute_corrected_values(
-//      rawValues,
-//      channelNumber,
-//      correctedValues,
-//      applyIntensityCorrection);
-//
-//  double & distanceM = correctedValues.distance;
-//  short intensity = correctedValues.intensity;
-//  double (& pos)[3] = correctedValues.position;
-//
-//  uint32_t temp = 0;
-//
-//  // Apply sensor transform
-//  //  cout << "this->SensorTransform" << this->SensorTransform->GetPosition()[0]
-//  // << " " << this->SensorTransform->GetPosition()[0] << " " << this->SensorTransform->GetPosition()[0] << endl;
-//  //  if (SensorTransform) this->SensorTransform->InternalTransformPoint(pos, pos);
-//  //  if (this->shouldBeCroppedOut(pos))
-//  //    return;
-//
-//  if (extDataPacketType > HDL_EXT_MODE_NONE) {
-//    //      const unsigned char * bytes = reinterpret_cast<const unsigned char*>(extData);
-//    //      temp = (static_cast<unsigned int>(bytes[0]) << 16)
-//    //           + (static_cast<unsigned int>(bytes[1]) << 8)
-//    //           + (static_cast<unsigned int>(bytes[2]) << 0);
-//    //
-//    //      if (isFiringDualReturnData) {
-//    //        if (this->HideDropPoints && ((temp & 0x800000) == 0x800000)) {
-//    //          return;
-//    //        }
-//    //      }
-//    //      else {
-//    //        if (this->HideDropPoints && ((temp & 0x800) == 0x800)) {
-//    //          return;
-//    //        }
-//    //      }
-//  }
-//
-//  // Do not add any data before here as this might short-circuit
-//  if( isFiringDualReturnData ) {
-//
-////    const uint dualPointId =
-////        this->LastPointId[channelNumberOr_dsrBase32_forVLP16]; //Can't be channelNumber because of VLP16 dual mode data layout
-////
-////    if (dualPointId < this->FirstPointIdOfDualReturnPair) {
-////      // No matching point from first set (skipped?)
-////      InsertNextValueIfNotNull(this->Flags, DUAL_DOUBLED);
-////      InsertNextValueIfNotNull(this->DistanceFlag, 0);
-////      InsertNextValueIfNotNull(this->DualReturnMatching, -1); // std::numeric_limits<vtkIdType>::quiet_NaN()
-////      InsertNextValueIfNotNull(this->IntensityFlag, 0);
-////    }
-////    else {
-////      const short dualIntensity = this->Intensity->GetValue(dualPointId);
-////      const double dualDistance = this->Distance->GetValue(dualPointId);
-////      unsigned int firstFlags = this->Flags->GetValue(dualPointId);
-////      unsigned int secondFlags = 0;
-////
-////      if( dualDistance == distanceM && intensity == dualIntensity ) {
-////        if( this->IgnoreZeroDistances ) {
-////          return; // ignore duplicate point and leave first with original flags
-////        }
-////        // Otherwise we add the duplicate point
-////      }
-////
-////      if (dualIntensity < intensity) {
-////        firstFlags &= ~HDL_DUAL_INTENSITY_HIGH;
-////        secondFlags |= HDL_DUAL_INTENSITY_HIGH;
-////      }
-////      else {
-////        firstFlags &= ~HDL_DUAL_INTENSITY_LOW;
-////        secondFlags |= HDL_DUAL_INTENSITY_LOW;
-////      }
-////
-////      if (dualDistance < distanceM) {
-////        firstFlags &= ~HDL_DUAL_DISTANCE_FAR;
-////        secondFlags |= HDL_DUAL_DISTANCE_FAR;
-////      }
-////      else {
-////        firstFlags &= ~HDL_DUAL_DISTANCE_NEAR;
-////        secondFlags |= HDL_DUAL_DISTANCE_NEAR;
-////      }
-////
-////      // We will output only one point so return out of this
-////      if (this->DualReturnFilter) {
-////        if (!(secondFlags & this->DualReturnFilter)) {
-////          // second return does not match filter; skip
-////          SetValueIfNotNull(this->Flags, dualPointId, firstFlags);
-////          SetValueIfNotNull(this->DistanceFlag, dualPointId, MapDistanceFlag(firstFlags));
-////          SetValueIfNotNull(this->IntensityFlag, dualPointId, MapIntensityFlag(firstFlags));
-////          return;
-////        }
-////        if (!(firstFlags & this->DualReturnFilter)) {
-////          // first return does not match filter; replace with second return
-////          this->Points->SetPoint(dualPointId, pos);
-////          SetValueIfNotNull(this->Distance, dualPointId, distanceM);
-////          SetValueIfNotNull(this->DistanceRaw, dualPointId, laserReturn->distance);
-////          SetValueIfNotNull(this->Intensity, dualPointId, intensity);
-////          SetValueIfNotNull(this->Timestamp, dualPointId, timestamp);
-////          SetValueIfNotNull(this->RawTime, dualPointId, rawtime);
-////          SetValueIfNotNull(this->Flags, dualPointId, secondFlags);
-////          SetValueIfNotNull(this->DistanceFlag, dualPointId, MapDistanceFlag(secondFlags));
-////          SetValueIfNotNull(this->IntensityFlag, dualPointId, MapIntensityFlag(secondFlags));
-////          return;
-////        }
-////      }
-////
-////      SetValueIfNotNull(this->Flags, dualPointId, firstFlags);
-////      SetValueIfNotNull(this->DistanceFlag, dualPointId, MapDistanceFlag(firstFlags));
-////      SetValueIfNotNull(this->IntensityFlag, dualPointId, MapIntensityFlag(firstFlags));
-////      InsertNextValueIfNotNull(this->Flags, secondFlags);
-////      InsertNextValueIfNotNull(this->DistanceFlag, MapDistanceFlag(secondFlags));
-////      InsertNextValueIfNotNull(this->IntensityFlag, MapIntensityFlag(secondFlags));
-////      // The first return indicates the dual return
-////      // and the dual return indicates the first return
-////      InsertNextValueIfNotNull(this->DualReturnMatching, dualPointId);
-////      SetValueIfNotNull(this->DualReturnMatching, dualPointId, thisPointId);
-////    }
-//  }
-//  else {
-////    InsertNextValueIfNotNull(this->Flags, DUAL_DOUBLED);
-////    InsertNextValueIfNotNull(this->DistanceFlag, 0);
-////    InsertNextValueIfNotNull(this->IntensityFlag, 0);
-////    InsertNextValueIfNotNull(this->DualReturnMatching, -1); // std::numeric_limits<vtkIdType>::quiet_NaN()
-//  }
-//
-////  this->Points->InsertNextPoint(pos);
-////  InsertNextValueIfNotNull(this->PointsX, pos[0]);
-////  InsertNextValueIfNotNull(this->PointsY, pos[1]);
-////  InsertNextValueIfNotNull(this->PointsZ, pos[2]);
-////  InsertNextValueIfNotNull(this->Azimuth, azimuth);
-////  InsertNextValueIfNotNull(this->Intensity, intensity);
-////  InsertNextValueIfNotNull(this->LaserId, channelNumber);
-////  InsertNextValueIfNotNull(this->Timestamp, timestamp);
-////  InsertNextValueIfNotNull(this->RawTime, rawtime);
-////  InsertNextValueIfNotNull(this->Distance, distanceM);
-////  InsertNextValueIfNotNull(this->DistanceRaw, laserReturn->distance);
-////  this->LastPointId[channelNumberOr_dsrBase32_forVLP16] = thisPointId;
-////  InsertNextValueIfNotNull(this->VerticalAngle, correctedValues.elevation);
-////
-////  if (extDataPacketType > HDL_EXT_MODE_NONE) {
-////    if (isFiringDualReturnData) {
-////      InsertNextValueIfNotNull(this->BinaryFlags, u32_to_str((temp & 0xFFF000) >> 12));
-////      InsertNextValueIfNotNull(this->Drop, (temp & 0x800000) >> 23);
-////      InsertNextValueIfNotNull(this->Confidence, (temp & 0x007000) >> 12);
-////      InsertNextValueIfNotNull(this->Interference, (temp & 0x060000) >> 17);
-////      InsertNextValueIfNotNull(this->SunLevel, (temp & 0x018000) >> 15);
-////    }
-////    else {
-////      InsertNextValueIfNotNull(this->BinaryFlags, u32_to_str(temp & 0xFFF));
-////      InsertNextValueIfNotNull(this->Drop, (temp & 0x800) >> 11);
-////      InsertNextValueIfNotNull(this->Confidence, temp & 0x007);
-////      InsertNextValueIfNotNull(this->Interference, (temp & 0x060) >> 5);
-////      InsertNextValueIfNotNull(this->SunLevel, (temp & 0x018) >> 3);
-////    }
-////  }
-//}
-//
-//
-////-----------------------------------------------------------------------------
-//void c_hdl_packet_parser::compute_corrected_values(
-//    const HDLRawValues & rawValues,
-//    const uint channelNumber,
-//    HDLCorrectedValues & correctedValues,
-//    bool correctIntensity) const
-//{
-//  const HDL_LaserCorrection * correction = &(this->laser_corrections_[channelNumber]);
-//
-//  correctedValues.intensity = rawValues.intensity;
-//  correctedValues.elevation = static_cast<double>(rawValues.elevation) * 0.01 + correction->verticalCorrection;
-//
-//  double cosAzimuth, sinAzimuth;
-//  if( correction->rotationalCorrection == 0 ) {
-//    cosAzimuth = cos_lookup_table_[rawValues.azimuth];
-//    sinAzimuth = sin_lookup_table_[rawValues.azimuth];
-//  }
-//  else {
-//    // realAzimuth = rawValues.azimuth/100 - rotationalCorrection
-//    // cos(a-b) = cos(a)*cos(b) + sin(a)*sin(b)
-//    // sin(a-b) = sin(a)*cos(b) - cos(a)*sin(b)
-//    cosAzimuth = cos_lookup_table_[rawValues.azimuth] * correction->cosRotationalCorrection +
-//      sin_lookup_table_[rawValues.azimuth] * correction->sinRotationalCorrection;
-//    sinAzimuth = sin_lookup_table_[rawValues.azimuth] * correction->cosRotationalCorrection -
-//      cos_lookup_table_[rawValues.azimuth] * correction->sinRotationalCorrection;
-//  }
-//
-//  double cosVertCorrection = correction->cosVertCorrection;
-//  double sinVertCorrection = correction->sinVertCorrection;
-//  double sinVertOffsetCorrection = correction->sinVertOffsetCorrection;
-//
-//  if( rawValues.elevation != 0 ) {
-//    const double vertAngleRad = M_PI / 180.0 *
-//        (correction->verticalCorrection + static_cast<double>(rawValues.elevation) / 100.0);
-//    cosVertCorrection = std::cos(vertAngleRad);
-//    sinVertCorrection = std::sin(vertAngleRad);
-//    sinVertOffsetCorrection = correction->verticalOffsetCorrection * sinVertCorrection;
-//  }
-//
-//  // Compute the distance in the xy plane (w/o accounting for rotation)
-//  /**the new term of sinVertOffsetCorrection
-//   * was added to the expression due to the mathemathical
-//   * model we used.(c
-//   */
-//  double distanceMRaw = rawValues.distance * this->DistanceResolutionM;
-//  double distanceM = distanceMRaw + correction->distanceCorrection;
-//  double xyDistance = distanceM * cosVertCorrection - sinVertOffsetCorrection;
-//
-//  correctedValues.distance = distanceM;
-//  correctedValues.position[0] = xyDistance * sinAzimuth - correction->horizontalOffsetCorrection * cosAzimuth;
-//  correctedValues.position[1] = xyDistance * cosAzimuth + correction->horizontalOffsetCorrection * sinAzimuth;
-//  correctedValues.position[2] = distanceM * sinVertCorrection + correction->verticalOffsetCorrection;
-//
-//  if( correctIntensity && (correction->minIntensity < correction->maxIntensity) ) {
-//    // Compute corrected intensity
-//
-//    /* Please refer to the manual:
-//     "Velodyne, Inc. ©2013  63‐HDL64ES3 REV G" Appendix F. Pages 45-46
-//     PLease note: in the manual, focalDistance is in centimeters, distance is the raw short from
-//     the laser
-//     & the graph is in meter */
-//
-//    // Casting the input values to double for the computation
-//    double computedIntensity = static_cast<double>(correctedValues.intensity);
-//    double minIntensity = static_cast<double>(correction->minIntensity);
-//    double maxIntensity = static_cast<double>(correction->maxIntensity);
-//
-//    // Rescale the intensity between 0 and 255
-//    computedIntensity = (computedIntensity - minIntensity) / (maxIntensity - minIntensity) * 255.0;
-//
-//    if( computedIntensity < 0 ) {
-//      computedIntensity = 0;
-//    }
-//
-//    double focalOffset = 256 * pow(1.0 - correction->focalDistance / 131.0, 2);
-//    double insideAbsValue = std::abs(
-//        focalOffset - 256 * pow(1.0 - static_cast<double>(rawValues.distance) / 65535.0f, 2));
-//
-//    if( insideAbsValue > 0 ) {
-//      computedIntensity = computedIntensity + correction->focalSlope * insideAbsValue;
-//    }
-//    else {
-//      computedIntensity = computedIntensity + correction->closeSlope * insideAbsValue;
-//    }
-//    computedIntensity = std::max(std::min(computedIntensity, 255.0), 1.0);
-//
-//    correctedValues.intensity = static_cast<decltype(correctedValues.intensity)>(computedIntensity);
-//  }
-//}
+

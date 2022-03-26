@@ -210,12 +210,14 @@ void MainWindow::setupMainToolbar()
           c_lidar_frame::sptr frame =
               lidar_frame_loader->load_next_frame();
 
-          lidarDisplays()->set_current_frame(frame);
-
           if ( !frame ) {
             QErrorMsgBox::show(this, "ERROR",
                 "load_next_frame() fails");
           }
+          else {
+            lidarDisplays()->set_current_frame(frame);
+          }
+
         }
       });
 
