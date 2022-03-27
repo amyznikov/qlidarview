@@ -16,6 +16,7 @@ endif()
 
 
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_PREFIX_PATH "/usr/local") # need for some stupid ubuntus
 
 # OpenCV
 set(OpenCV_MINIMUM_VERSION_REQUIRED "4.2")
@@ -41,12 +42,17 @@ message(STATUS "tiff:  ${TIFF_INCLUDE_DIR} ${TIFF_LIBRARIES}")
 
 
 # tinyxml2
-find_package(tinyxml2)
-if ( NOT tinyxml2_FOUND )
-  message( FATAL_ERROR "tinyxml2 package is mandatory but is not found in your system. Install tinyxml2 package please.")
+find_package(tinyxml2 QUIET)
+if ( tinyxml2_FOUND )
+	get_target_property(TINYXML2_INCLUDE_DIR tinyxml2::tinyxml2 INTERFACE_INCLUDE_DIRECTORIES)
+	set(TINYXML2_LIBRARIES tinyxml2::tinyxml2)
+else()
+	find_path(TINYXML2_INCLUDE_DIR tinyxml2.h)
+	find_library(TINYXML2_LIBRARIES tinyxml2)
+	if ( NOT TINYXML2_LIBRARIES ) 
+	  message( FATAL_ERROR "tinyxml2 package is mandatory but is not found in your system. Install tinyxml2 package please.")
+	endif()
 endif()
-get_target_property(TINYXML2_INCLUDE_DIR tinyxml2::tinyxml2 INTERFACE_INCLUDE_DIRECTORIES)
-set(TINYXML2_LIBRARIES tinyxml2::tinyxml2)
 message(STATUS "tinyxml2: ${tinyxml2_VERSION} ${TINYXML2_INCLUDE_DIR} ${TINYXML2_LIBRARIES}")
 
 

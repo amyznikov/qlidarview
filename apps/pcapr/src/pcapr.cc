@@ -9,7 +9,6 @@
  */
 
 #include <core/lidar/c_hdl_pcap_file_loader.h>
-#include <opencv2/opencv.hpp>
 #include <core/io/save_image.h>
 #include <core/ssprintf.h>
 #include <core/debug.h>

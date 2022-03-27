@@ -90,8 +90,13 @@ bool load_hdl_lidar_specifcation_db_xml(const std::string & xmlfilename,
 
   status = xml.LoadFile(xmlfilename.c_str());
   if( status != XML_SUCCESS ) {
+#if  (TINYXML2_MAJOR_VERSION >= 6)
     CF_ERROR("xml.LoadFile('%s') fails: %s",
         xmlfilename.c_str(), xml.ErrorStr());
+#else
+    CF_ERROR("xml.LoadFile('%s') fails: XMLError = %d (%s)",
+        xmlfilename.c_str(), (int)status, xml.ErrorName());
+#endif
     return false;
   }
 

@@ -3,23 +3,30 @@
  *
  *  Created on: Mar 11, 2022
  *      Author: amyznikov
+*
+ * For pcap link types see
+ *  <https://www.ietf.org/id/draft-ietf-opsawg-pcap-00.html>
+ *
+ * For capturing lidar data use tcpdump
+ *  tcpdump -vv -i any -u "src 192.168.2.201 and udp and port 2368" -w test.pcap
+ *
  */
 
 #ifndef __c_pcap_file_h__
 #define __c_pcap_file_h__
 
 #include <string>
-#include <pcap/pcap.h>
 #include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#include <pcap/pcap.h>
+#include <pcap/dlt.h>
+#include <pcap/sll.h>
+
 
 
 #pragma pack(push,1)
 
-/* For pcap link types see
- *  <https://www.ietf.org/id/draft-ietf-opsawg-pcap-00.html>
- */
 
 /**
  * c_en10mb_header
@@ -49,12 +56,36 @@ struct c_bsd_loopback_header {
 };
 
 /**
+ * c_sll_header
+ * DLT_LINUX_SLL
+ * Linux cooked capture encapsulation
+ */
+struct c_sll_header {
+  struct sll_header sll;
+  struct ip ip;
+  struct udphdr udp;
+};
+
+/**
+ * c_sll2_header
+ * DLT_LINUX_SLL2
+ * Linux cooked sockets v2
+ */
+struct c_sll2_header {
+  struct sll2_header sll2;
+  struct ip ip;
+  struct udphdr udp;
+};
+
+/**
  * c_pcap_data_header
  * */
 union c_pcap_data_header
 {
   struct c_en10mb_header en10mb;
   struct c_bsd_loopback_header loopbak;
+  struct c_sll_header sll;
+  struct c_sll2_header sll2;
 };
 
 

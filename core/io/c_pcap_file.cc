@@ -138,11 +138,17 @@ bool c_pcap_reader::open(const std::string & filename, const std::string & filte
   // Determine Datalink header size
   switch ((datalinktype_ = pcap_datalink(pcap_)))
   {
+  case DLT_NULL:
+    data_header_size_ = sizeof(c_bsd_loopback_header);
+    break;
   case DLT_EN10MB:
     data_header_size_ = sizeof(c_en10mb_header);
     break;
-  case DLT_NULL:
-    data_header_size_ = sizeof(c_bsd_loopback_header);
+  case DLT_LINUX_SLL:
+    data_header_size_ = sizeof(struct c_sll_header);
+    break;
+  case DLT_LINUX_SLL2:
+    data_header_size_ = sizeof(struct sll2_header);
     break;
 
   default:
@@ -225,9 +231,20 @@ int c_pcap_reader::read(const pcap_pkthdr ** paket_header, const c_pcap_data_hea
     // See <https://www.ietf.org/id/draft-ietf-opsawg-pcap-00.html#linktype>
     switch (datalinktype_) {
 
+    case DLT_NULL:
+      if( pkt_header->len < sizeof(c_bsd_loopback_header) ) {
+        CF_ERROR("Invalid pkt_header->len=%ud < loopback_header size=%zu",
+            pkt_header->len, sizeof(c_bsd_loopback_header));
+        status = PCAP_ERROR;
+      }
+      else if( payload ) {
+        *payload = pkt_data + sizeof(c_bsd_loopback_header);
+      }
+      break;
+
     case DLT_EN10MB:
       if( pkt_header->len < sizeof(c_en10mb_header) ) {
-        CF_ERROR("Invalid pkt_header->len=%ud < ethernet_header_size=%zu",
+        CF_ERROR("Invalid pkt_header->len=%ud < ethernet_header size=%zu",
             pkt_header->len, sizeof(c_en10mb_header));
         status = PCAP_ERROR;
       }
@@ -236,14 +253,25 @@ int c_pcap_reader::read(const pcap_pkthdr ** paket_header, const c_pcap_data_hea
       }
       break;
 
-    case DLT_NULL:
-      if( pkt_header->len < sizeof(c_bsd_loopback_header) ) {
-        CF_ERROR("Invalid pkt_header->len=%ud < loopback_header_size=%zu",
-            pkt_header->len, sizeof(c_bsd_loopback_header));
+    case DLT_LINUX_SLL:
+      if( pkt_header->len < sizeof(struct c_sll_header) ) {
+        CF_ERROR("Invalid pkt_header->len=%ud < c_sll_header size=%zu",
+            pkt_header->len, sizeof(struct c_sll_header));
         status = PCAP_ERROR;
       }
       else if( payload ) {
-        *payload = pkt_data + sizeof(c_bsd_loopback_header);
+        *payload = pkt_data + sizeof(struct c_sll_header);
+      }
+      break;
+
+    case DLT_LINUX_SLL2:
+      if( pkt_header->len < sizeof(struct sll2_header) ) {
+        CF_ERROR("Invalid pkt_header->len=%ud < sll2_header size=%zu",
+            pkt_header->len, sizeof(struct sll2_header));
+        status = PCAP_ERROR;
+      }
+      else if( payload ) {
+        *payload = pkt_data + sizeof(struct sll2_header);
       }
       break;
 
