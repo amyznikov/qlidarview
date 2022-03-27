@@ -20,7 +20,7 @@ The datalink types curretly supported are only DLT_NULL=0 (BSD loopback encapsul
 and DLT_EN10MB=1 (Ethernet (10Mb))
 
 
-The build depencencies are 
+The build dependencies are 
 
 	tinyxml2
 	tbb 
