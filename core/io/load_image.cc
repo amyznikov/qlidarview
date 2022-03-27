@@ -16,6 +16,7 @@
 #include <core/readdir.h>
 #include <core/debug.h>
 
+
 namespace {
 
 static constexpr int MAX_IMAGE_SIZE = 524288; // 2^19
@@ -118,6 +119,7 @@ static int cvMatDepth(uint tiff_sample_format, uint tiff_bps)
 
 static bool load_tiff_image (cv::Mat & image, const std::string & filename)
 {
+  CF_DEBUG("ENTER");
   image.release();
 
   if ( filename.empty() ) {
@@ -286,7 +288,7 @@ static bool load_tiff_image (cv::Mat & image, const std::string & filename)
     CF_WARNING("%u additional extra channels are not handled", EXTRA);
   }
 
-  // CF_DEBUG("[%s] worst_case=%d", cfilename, worst_case);
+  CF_DEBUG("[%s] worst_case=%d", cfilename, worst_case);
 
   if ( worst_case ) {
 
@@ -306,6 +308,7 @@ static bool load_tiff_image (cv::Mat & image, const std::string & filename)
 
   }
   else {
+
 
     uint32_t tile_width = 0;
     uint32_t tile_height = 0;
@@ -341,7 +344,7 @@ static bool load_tiff_image (cv::Mat & image, const std::string & filename)
 
       if ( !TIFFIsTiled(tif) ) {
 
-        for ( int y = 0; y < IMAGE_HEIGHT; ++y ) {
+        for ( uint y = 0; y < IMAGE_HEIGHT; ++y ) {
           if ( TIFFReadScanline(tif, image.ptr<void>(y), y, 0) < 0 ) {
             CF_ERROR("TIFFReadScanline(y=%d) fails", y);
             return false;
@@ -352,18 +355,28 @@ static bool load_tiff_image (cv::Mat & image, const std::string & filename)
       else {
 
         cv::Mat tile;
+        uint w, h;
         tile.create(tile_height, tile_width, image.type());
 
-        for ( int y = 0; y < IMAGE_HEIGHT; y += tile_height ) {
-          for ( int x = 0; x < IMAGE_WIDTH; x += tile_width ) {
+        for ( uint y = 0; y < IMAGE_HEIGHT; ) {
+
+          h = y + tile_height <= IMAGE_HEIGHT ? tile_height : IMAGE_HEIGHT - y;
+
+          for ( uint x = 0; x < IMAGE_WIDTH;  ) {
 
             if ( TIFFReadTile(tif, tile.data, x, y, 0, 0) < 0 ) {
               CF_ERROR("TIFFReadTile(x=%d y=%d) fails", x, y);
               return false;
             }
 
-            tile.copyTo(image(cv::Rect(x, y, tile_width, tile_height)));
+            w = x + tile_width <= IMAGE_WIDTH ? tile_width : IMAGE_WIDTH - x;
+
+            tile(cv::Rect(0,0,w,h)).copyTo(image(cv::Rect(x, y, w, h)));
+
+            x += w;
           }
+
+          y += h;
         }
 
       }
@@ -394,8 +407,6 @@ static bool load_tiff_image (cv::Mat & image, const std::string & filename)
 // Split BGRA to BGR and mask
 bool splitbgra(const cv::Mat & input_image, cv::Mat & output_image, cv::Mat * output_alpha_mask)
 {
-  INSTRUMENT_REGION("");
-
   const int cn = input_image.channels();
 
   if ( cn == 2 ) {
@@ -461,10 +472,7 @@ bool splitbgra(const cv::Mat & input_image, cv::Mat & output_image, cv::Mat * ou
 
 bool load_image(const std::string & filename, cv::OutputArray output_image, cv::OutputArray output_mask)
 {
-  INSTRUMENT_REGION("");
-
-  const std::string suffix =
-      get_file_suffix(filename);
+  const std::string suffix = get_file_suffix(filename);
 
   if ( strcasecmp(suffix.c_str(), ".flo") == 0 ) {
 
@@ -495,10 +503,9 @@ bool load_image(const std::string & filename, cv::OutputArray output_image, cv::
         }
       }
       else {
-        cv::Mat m =
-            cv::imread(filename,
-                cv::IMREAD_UNCHANGED);
 
+        cv::Mat m = cv::imread(filename,
+            cv::IMREAD_UNCHANGED);
         output_image.move(m);
 
         if ( output_image.empty() ) {
