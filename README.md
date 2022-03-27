@@ -16,8 +16,8 @@ appropriate for testings purposes.
 The conversion to point clouds and range images completelly rely onto calibration tables which usually should be provided by sensor manufacturer.
 The default calibration parameters hardcoded into application code are collected from public LiDARs user manuals and VeloView .xml files.
 
-The datalink types curretly supported are only DLT_NULL=0 (BSD loopback encapsulation) 
-and DLT_EN10MB=1 (Ethernet (10Mb))
+The datalink types curretly supported are only DLT_NULL=0 (BSD loopback encapsulation), DLT_EN10MB=1 (Ethernet (10Mb)),
+DLT_LINUX_SLL=113 (Linux cooked sockets) and DLT_LINUX_SLL2=276 (Linux cooked sockets v2).
 
 
 The build dependencies are 
