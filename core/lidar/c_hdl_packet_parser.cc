@@ -25,7 +25,6 @@ static constexpr double  VLS128_SEQ_TDURATION     =  53.3;   // [µs] Sequence i
 static constexpr double  VLS128_TOH_ADJUSTMENT    =  8.7;    // [µs] μs. Top Of the Hour is aligned with the fourth firing group in a firing sequence.
 
 
-
 static inline double SQR(double val)
 {
   return val * val;
@@ -55,6 +54,7 @@ const c_hdl_lidar_specifcation * c_hdl_packet_parser::lidar_specification() cons
 {
   return &lidar_specification_;
 }
+
 
 void c_hdl_packet_parser::set_hdl_framing_mode(enum HDLFramingMode v)
 {
@@ -159,7 +159,7 @@ bool c_hdl_packet_parser::setup(HDLSensorType sensor_type, HDLReturnMode return_
 bool c_hdl_packet_parser::parse(const uint8_t * data, uint size)
 {
   if( size != hdl_lidar_packet_size() ) {
-    CF_ERROR("IGNORE PACKET: invalid size = %u", size);
+    // CF_ERROR("IGNORE PACKET: invalid size = %u", size);
     return true;
   }
 
@@ -175,6 +175,8 @@ bool c_hdl_packet_parser::parse(const uint8_t * data, uint size)
   const HDLReturnMode return_mode =
       get_return_mode(*dataPacket);
 
+  // CF_DEBUG("PACKET %s %s", toString(sensor_type), toString(return_mode));
+
   if( lidar_specification_.sensor == HDLSensor_unknown ) {
 
     CF_DEBUG("SETUP %s %s", toString(sensor_type), toString(return_mode));
@@ -187,12 +189,12 @@ bool c_hdl_packet_parser::parse(const uint8_t * data, uint size)
   else if( sensor_type != lidar_specification_.sensor ) {
     CF_ERROR("Unexpected sensor type change: %s -> %s",
         toString(lidar_specification_.sensor), toString(sensor_type));
-    return false;
+    return true; // silently skip packet
   }
   else if( return_mode != this->return_mode_ ) {
     CF_ERROR("Unexpected return mode change: %s -> %s",
         toString(this->return_mode_), toString(return_mode));
-    return false;
+    return true; // silently skip packet
   }
 
 
@@ -525,7 +527,10 @@ bool c_hdl_packet_parser::parse_vlp16(const HDLDataPacket *dataPacket)
       }
     }
 
+    // CF_DEBUG("CHECK block: %d pkt: %d: current_azimuth=%d last_known_azimuth_=%d", block, pktcounter_, current_azimuth, last_known_azimuth_);
+
     if( frames.empty() || is_hdl_frame_seam(current_azimuth, last_known_azimuth_) ) {
+      // CF_DEBUG("XXX SEAM: current_azimuth=%d last_known_azimuth_=%d", current_azimuth, last_known_azimuth_);
       frames.emplace_back(std::make_shared<c_lidar_frame>());
     }
 

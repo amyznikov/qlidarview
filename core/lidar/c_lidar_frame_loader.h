@@ -37,6 +37,9 @@ public:
   virtual void set_hdl_frame_seam_azimuth(double azimuth_in_degrees) = 0;
   virtual double hdl_frame_seam_azimuth() const = 0;
 
+  virtual void set_zlidarid(uint32_t allowed_zlidar) = 0;
+  virtual uint32_t zlidarid() const = 0;
+
   virtual c_lidar_frame::sptr load_next_frame() = 0;
 
 };

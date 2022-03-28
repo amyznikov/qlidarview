@@ -6,7 +6,6 @@
  */
 
 #include "c_pcap_file.h"
-
 #include <core/debug.h>
 
 /**
@@ -63,11 +62,6 @@ const std::string & c_pcap_reader::options() const
   return options_;
 }
 
-const std::string & c_pcap_reader::errmsg () const
-{
-  return errmsg_;
-}
-
 uint c_pcap_reader::precision() const
 {
   return precision_;
@@ -113,7 +107,6 @@ bool c_pcap_reader::open(const std::string & filename, const std::string & filte
   if( !(pcap_ = pcap_open_offline_with_tstamp_precision(filename_.c_str(), precision_, errbuf)) ) {
     CF_ERROR("pcap_open_offline_with_tstamp_precision('%s') fails: errno = %d (%s) errbuf='%s'",
         filename.c_str(), errno, strerror(errno), errbuf);
-    errmsg_ = errbuf;
     goto end;
   }
 
@@ -123,18 +116,17 @@ bool c_pcap_reader::open(const std::string & filename, const std::string & filte
     bpf_program filter;
 
     if( pcap_compile(pcap_, &filter, filter_arg.c_str(), 0, PCAP_NETMASK_UNKNOWN) == -1 ) {
-      errmsg_ = pcap_geterr(pcap_);
-      CF_ERROR("pcap_compile(filter='%s') fails: %s", filter_arg.c_str(), errmsg_.c_str());
+      CF_ERROR("pcap_compile(filter='%s') fails: %s", filter_arg.c_str(), pcap_geterr(pcap_));
       goto end;
     }
 
     // Associate filter to pcap
     if( pcap_setfilter(pcap_, &filter) < 0 ) {
-      errmsg_ = pcap_geterr(pcap_);
-      CF_ERROR("pcap_setfilter(filter='%s') fails: %s", filter_arg.c_str(), errmsg_.c_str());
+      CF_ERROR("pcap_setfilter(filter='%s') fails: %s", filter_arg.c_str(), pcap_geterr(pcap_));
       goto end;
     }
   }
+
   // Determine Datalink header size
   switch ((datalinktype_ = pcap_datalink(pcap_)))
   {
@@ -150,11 +142,13 @@ bool c_pcap_reader::open(const std::string & filename, const std::string & filte
   case DLT_LINUX_SLL2:
     data_header_size_ = sizeof(struct sll2_header);
     break;
-
+  case DLT_USER1:
+    data_header_size_ = sizeof(struct c_dltuser1_header);
+    break;
   default:
-    data_header_size_ = -1;
-    errmsg_ = "Unknown link type in pcap file. Cannot tell where the payload is.";
-    CF_ERROR("Unknown or not supported link type %d in pcap file. Cannot tell where the payload is.", datalinktype_);
+    data_header_size_ = 0;
+    CF_ERROR("Unknown or not supported link type %d in pcap file. "
+        "Cannot tell where the payload is.", datalinktype_);
     goto end;
   }
 
@@ -233,7 +227,7 @@ int c_pcap_reader::read(const pcap_pkthdr ** paket_header, const c_pcap_data_hea
 
     case DLT_NULL:
       if( pkt_header->len < sizeof(c_bsd_loopback_header) ) {
-        CF_ERROR("Invalid pkt_header->len=%ud < loopback_header size=%zu",
+        CF_ERROR("Invalid pkt_header->len=%u < loopback_header size=%zu",
             pkt_header->len, sizeof(c_bsd_loopback_header));
         status = PCAP_ERROR;
       }
@@ -244,7 +238,7 @@ int c_pcap_reader::read(const pcap_pkthdr ** paket_header, const c_pcap_data_hea
 
     case DLT_EN10MB:
       if( pkt_header->len < sizeof(c_en10mb_header) ) {
-        CF_ERROR("Invalid pkt_header->len=%ud < ethernet_header size=%zu",
+        CF_ERROR("Invalid pkt_header->len=%u < ethernet_header size=%zu",
             pkt_header->len, sizeof(c_en10mb_header));
         status = PCAP_ERROR;
       }
@@ -255,7 +249,7 @@ int c_pcap_reader::read(const pcap_pkthdr ** paket_header, const c_pcap_data_hea
 
     case DLT_LINUX_SLL:
       if( pkt_header->len < sizeof(struct c_sll_header) ) {
-        CF_ERROR("Invalid pkt_header->len=%ud < c_sll_header size=%zu",
+        CF_ERROR("Invalid pkt_header->len=%u < c_sll_header size=%zu",
             pkt_header->len, sizeof(struct c_sll_header));
         status = PCAP_ERROR;
       }
@@ -265,19 +259,34 @@ int c_pcap_reader::read(const pcap_pkthdr ** paket_header, const c_pcap_data_hea
       break;
 
     case DLT_LINUX_SLL2:
-      if( pkt_header->len < sizeof(struct sll2_header) ) {
-        CF_ERROR("Invalid pkt_header->len=%ud < sll2_header size=%zu",
-            pkt_header->len, sizeof(struct sll2_header));
+      if( pkt_header->len < sizeof(struct c_sll2_header) ) {
+        CF_ERROR("Invalid pkt_header->len=%u < c_sll2_header=%zu",
+            pkt_header->len, sizeof(struct c_sll2_header));
         status = PCAP_ERROR;
       }
       else if( payload ) {
-        *payload = pkt_data + sizeof(struct sll2_header);
+        *payload = pkt_data + sizeof(struct c_sll2_header);
+      }
+      break;
+
+    case DLT_USER1:
+      if( pkt_header->len < sizeof(struct c_dltuser1_header) ) {
+        // CF_ERROR("Invalid pkt_header->len=%u < sizeof(c_dltuser1_header)=%zu",
+        //  pkt_header->len, sizeof(c_dltuser1_header));
+        status = 0;
+        if( payload ) {
+          *payload = nullptr;
+        }
+      }
+      else if( payload ) {
+        *payload = pkt_data +
+            sizeof(struct c_dltuser1_header);
       }
       break;
 
     default:
-      errmsg_ = "Unknown link type in pcap file. Cannot tell where the payload is.";
-      CF_ERROR("Unknown or not supported link type %d in pcap file. Cannot tell where the payload is.", datalinktype_);
+      CF_ERROR("Unknown or not supported link type %d in pcap file. "
+          "Cannot tell where the payload is.", datalinktype_);
       status = PCAP_ERROR;
       break;
     }

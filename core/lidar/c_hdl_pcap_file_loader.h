@@ -38,11 +38,15 @@ public:
   void set_hdl_frame_seam_azimuth(double azimuth_in_degrees) override;
   double hdl_frame_seam_azimuth() const override;
 
+  void set_zlidarid(uint32_t v) override;
+  uint32_t zlidarid() const override;
+
   c_lidar_frame::sptr load_next_frame() override;
 
 protected:
   c_hdl_packet_parser hdl_parser_;
   c_pcap_reader pcap_;
+  uint32_t zlidarid_ = -1;
 };
 
 #endif /* __c_velodyne_pcap_file_loader_h__ */

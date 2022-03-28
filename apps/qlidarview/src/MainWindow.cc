@@ -6,6 +6,7 @@
  */
 
 #include "MainWindow.h"
+#include <gui/widgets/QWaitCursor.h>
 #include <core/debug.h>
 
 namespace qlidarview {
@@ -207,6 +208,8 @@ void MainWindow::setupMainToolbar()
       [this]() {
         if ( lidar_frame_loader ) {
 
+          QWaitCursor wait(this);
+
           c_lidar_frame::sptr frame =
               lidar_frame_loader->load_next_frame();
 
@@ -274,6 +277,8 @@ void MainWindow::openLidarFile(const QString & abspath)
 {
   try {
 
+    QWaitCursor wait(this);
+
     cloudViewSettings->showCurrentSensorInfo(HDLSensor_unknown);
     lidarDisplays()->set_current_frame(nullptr);
 
@@ -295,6 +300,9 @@ void MainWindow::openLidarFile(const QString & abspath)
 
       lidar_frame_loader->set_hdl_frame_seam_azimuth(
           cloudViewSettings->hdlFrameSeamAzimuth());
+
+      lidar_frame_loader->set_zlidarid(
+          cloudViewSettings->zlidarid());
 
       const c_lidar_frame::sptr first_frame =
           lidar_frame_loader->load_next_frame();
@@ -345,6 +353,8 @@ void MainWindow::setupRangeImageView()
 
   rangeImageView = rangeImageDock->imageView();
 
+  rangeImageView->addAction(copyRangeImageToClipboardAction = new QAction("Copy range image", rangeImageView));
+  editMenu->addAction(copyRangeImageToClipboardAction);
 
   shortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_C), rangeImageView);
   connect(shortcut, &QShortcut::activated, copyRangeImageToClipboardAction, &QAction::trigger);
@@ -357,8 +367,6 @@ void MainWindow::setupRangeImageView()
   shortcut = new QShortcut(QKeySequence(Qt::CTRL + Qt::SHIFT + Qt::Key_S), rangeImageView);
   connect(shortcut, &QShortcut::activated, saveCurrentRangeImageAction, &QAction::trigger);
 
-  rangeImageView->addAction(copyRangeImageToClipboardAction = new QAction("Copy range image", rangeImageView));
-  editMenu->addAction(copyRangeImageToClipboardAction);
   connect(copyRangeImageToClipboardAction, &QAction::triggered,
       [this]() {
         if ( rangeImageView->isVisible() ) {
@@ -504,6 +512,14 @@ void MainWindow::setupCloudViewSettingsDock()
           lidar_frame_loader->set_hdl_frame_seam_azimuth(v);
         }
       });
+  connect(cloudViewSettings, &QLidarCloudViewSettings::zlidarIdChanged,
+      [this]() {
+        if ( lidar_frame_loader ) {
+          lidar_frame_loader->set_zlidarid(
+              cloudViewSettings->zlidarid());
+        }
+      });
+
 
   setLidarDisplayAzimuthalResolution(cloudViewSettings->lidarDsplayAzimuthalResolution());
   setLidarDisplayStartAzimuth(cloudViewSettings->lidarDsplayStartAzimuth());

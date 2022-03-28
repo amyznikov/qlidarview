@@ -65,6 +65,16 @@ double c_hdl_pcap_file_loader::hdl_frame_seam_azimuth() const
   return hdl_parser_.hdl_frame_seam_azimuth();
 }
 
+void c_hdl_pcap_file_loader::set_zlidarid(uint32_t v)
+{
+  zlidarid_ = v;
+}
+
+uint32_t c_hdl_pcap_file_loader::zlidarid() const
+{
+  return zlidarid_;
+}
+
 void c_hdl_pcap_file_loader::close()
 {
   pcap_.close();
@@ -107,22 +117,31 @@ c_lidar_frame::sptr c_hdl_pcap_file_loader::load_next_frame()
   }
 
 
-  while ((status = pcap_.read(&pkt_header, &data_header, &payload)) > 0) {
+  while ((status = pcap_.read(&pkt_header, &data_header, &payload)) >= 0) {
 
-   // CF_DEBUG("PORT: %u", ntohs(data_header->en10mb.udp.dest));
+    if ( !payload ) {
+      continue;
+    }
 
     const uint payload_size =
         pkt_header->len - pcap_.data_header_size();
 
+    if ( pcap_.datalinktype() == DLT_USER1 && zlidarid_ != -1 ) {
+      if ( data_header->user1.zlidarid != zlidarid_ ) {
+        continue;
+      }
+    }
+
     if( !hdl_parser_.parse(payload, payload_size) ) {
       CF_ERROR("packet_parser_.parse() fails");
-      return nullptr;
+      break;
     }
 
     if( hdl_parser_.frames.size() > 1 ) {
       frame = pop_frame(hdl_parser_);
       break;
     }
+
   }
 
   if ( status <= 0 ) {
@@ -133,11 +152,6 @@ c_lidar_frame::sptr c_hdl_pcap_file_loader::load_next_frame()
     frame = pop_frame(hdl_parser_);
   }
 
-
-  if ( frame ) {
-    //    CF_DEBUG("popuated_frame->points=%zu",
-    //        frame->points.size());
-  }
 
   return frame;
 }

@@ -29,6 +29,18 @@
 
 
 /**
+ * c_bsd_loopback_header
+ * DLT_NULL
+ *
+ * BSD loopback encapsulation header
+ **/
+struct c_bsd_loopback_header {
+  uint32_t protocol; // AF_INET etc
+  struct ip ip;
+  struct udphdr udp;
+};
+
+/**
  * c_en10mb_header
  * DLT_EN10MB
  *
@@ -38,19 +50,6 @@
 struct c_en10mb_header
 {
   struct ether_header eth;
-  struct ip ip;
-  struct udphdr udp;
-};
-
-
-/**
- * c_bsd_loopback_header
- * DLT_NULL
- *
- * BSD loopback encapsulation header
- **/
-struct c_bsd_loopback_header {
-  uint32_t protocol; // AF_INET etc
   struct ip ip;
   struct udphdr udp;
 };
@@ -78,6 +77,33 @@ struct c_sll2_header {
 };
 
 /**
+ * c_dltuser1_header
+ * DLT_USER1 = 148
+ * Reserved for private use.
+ * Probably zenuity-specific DLT
+ *
+ * 69 106 8 0 VS128
+ * 56 184 8 0 VLP16 1
+ * 56 198 8 0 VLP16 2
+ */
+
+enum c_zlidar_id {
+  c_zlidar_id_any = -1,
+  c_zlidar_lidar_id_vlp16_1 = (56 + (184<<8) + (8 << 16)),
+  c_zlidar_lidar_id_vlp16_2 = (56 + (198<<8) + (8 << 16)),
+  c_zlidar_lidar_id_vls128 = (69 + (106<<8) + (8 << 16)),
+};
+
+struct c_dltuser1_header {
+  uint8_t unknown_bytes[54 - sizeof(struct ip) - sizeof(struct udphdr) - 4];
+  uint32_t zlidarid;
+  struct ip ip;
+  struct udphdr udp;
+};
+
+
+
+/**
  * c_pcap_data_header
  * */
 union c_pcap_data_header
@@ -86,6 +112,7 @@ union c_pcap_data_header
   struct c_bsd_loopback_header loopbak;
   struct c_sll_header sll;
   struct c_sll2_header sll2;
+  struct c_dltuser1_header user1;
 };
 
 
@@ -110,9 +137,6 @@ public:
 
   /** Get current pcap options */
   const std::string & options() const;
-
-  /** Get last error message from a pcap function */
-  const std::string & errmsg () const;
 
   /* Access to pcap file handle */
   pcap_t * pcap() const;
@@ -160,9 +184,7 @@ protected:
   pcap_t * pcap_ = nullptr;
   std::string filename_;
   std::string options_;
-  std::string errmsg_;
   uint precision_ = PCAP_TSTAMP_PRECISION_MICRO;
-  //uint frame_header_length_ = 0;
   int datalinktype_ = 0;
   int data_header_size_ = -1;
 };

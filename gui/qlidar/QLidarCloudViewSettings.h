@@ -11,6 +11,7 @@
 
 #include <gui/widgets/QSettingsWidget.h>
 #include <core/lidar/c_hdl_lidar_specifcation.h>
+#include <core/io/c_pcap_file.h>
 #include "QLidarCloudView.h"
 
 
@@ -32,11 +33,14 @@ public:
   // these are temporary controls until I add dedicated settings widgets
   HDLFramingMode hdlFramingMode() const;
   double hdlFrameSeamAzimuth() const;
+  c_zlidar_id zlidarid() const;
   double lidarDsplayAzimuthalResolution() const;
   double lidarDsplayStartAzimuth() const;
 
+
 signals:
   void framingModeChanged();
+  void zlidarIdChanged();
   void hdlFrameSeamAzimuthChanged(double v);
   void lidarDisplayAzimuthalResolutionChanged(double v);
   void lidarDisplayStartAzimuthChanged(double v);
@@ -53,6 +57,8 @@ protected:
   QNumberEditBox * pointSize_ctl = Q_NULLPTR;
   QEnumComboBox<HDLFramingMode> * framingMode_crl = Q_NULLPTR;
   QNumberEditBox * hdlFrameSeamAzimuth_ctl = Q_NULLPTR;
+  QEnumComboBox<c_zlidar_id> * zlidarid_ctl = Q_NULLPTR;
+
   QNumberEditBox * lidarDsplayAzimuthalResolution_ctl = Q_NULLPTR;
   QNumberEditBox * lidarDsplayStartAzimuth_ctl = Q_NULLPTR;
 };

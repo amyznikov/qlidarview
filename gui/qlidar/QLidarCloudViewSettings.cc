@@ -52,6 +52,13 @@ QLidarCloudViewSettings::QLidarCloudViewSettings(QWidget * parent)
         emit hdlFrameSeamAzimuthChanged(v);
       });
 
+  zlidarid_ctl = add_enum_combobox<c_zlidar_id>("zlidarid:",
+      [this](c_zlidar_id v) {
+        save_parameter(PREFIX, "zlidarid", v);
+        emit zlidarIdChanged();
+      });
+
+  zlidarid_ctl->setToolTip("Experimental option for very specific proprietary vpcap files");
 
   lidarDsplayAzimuthalResolution_ctl = add_numeric_box<double>("Image resolution [deg/pix]",
       [this](double v) {
@@ -112,6 +119,11 @@ double QLidarCloudViewSettings::hdlFrameSeamAzimuth() const
   return value;
 }
 
+c_zlidar_id QLidarCloudViewSettings::zlidarid() const
+{
+  return zlidarid_ctl->currentItem();
+}
+
 double QLidarCloudViewSettings::lidarDsplayAzimuthalResolution() const
 {
   double value = 0.2;
@@ -156,6 +168,13 @@ void QLidarCloudViewSettings::onload(QSettings & settings)
     if ( load_parameter(settings, PREFIX, "framingMode", &v) ) {
       framingMode_crl->setCurrentItem(v);
     }
+
+
+    c_zlidar_id zlidarid = zlidarid_ctl->currentItem();
+    if( load_parameter(settings, PREFIX, "zlidarid", &zlidarid) ) {
+      zlidarid_ctl->setCurrentItem(zlidarid);
+    }
+
 
     double hdlFrameSeamAzimuth = 0;
     if( load_parameter(settings, PREFIX, "hdlFrameSeamAzimuth", &hdlFrameSeamAzimuth) ) {

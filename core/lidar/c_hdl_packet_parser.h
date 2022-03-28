@@ -96,15 +96,16 @@ public:
   bool parse(const uint8_t * data, uint size);
   void reset();
 
-  HDLSensorType sensor_type() const;
-  HDLReturnMode return_mode() const;
-  const c_hdl_lidar_specifcation * lidar_specification() const;
-
   void set_hdl_framing_mode(enum HDLFramingMode v);
   enum HDLFramingMode hdl_framing_mode() const;
 
   void set_hdl_frame_seam_azimuth(double azimuth_in_degrees);
   double hdl_frame_seam_azimuth() const;
+
+  HDLSensorType sensor_type() const;
+  HDLReturnMode return_mode() const;
+  const c_hdl_lidar_specifcation * lidar_specification() const;
+
 
   int last_known_azimuth() const;
   int pktcounter() const;
@@ -123,7 +124,6 @@ protected:
 
 
 protected:
-  //HDLSensorType sensor_type_ = HDLSensor_unknown;
   HDLReturnMode return_mode_ = HDLReturnMode_unknown;
   HDLFramingMode hdl_framing_mode_ = HDLFraming_Rotation;
   int last_known_azimuth_ = 0;
