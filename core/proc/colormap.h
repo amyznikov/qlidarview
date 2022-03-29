@@ -10,6 +10,17 @@
 
 #include <opencv2/opencv.hpp>
 
+// OpenCV version macro
+#ifndef CV_VERSION_INT
+# define CV_VERSION_INT(a,b,c) ((a)<<16 | (b)<<8 | (c))
+#endif
+#ifndef CV_VERSION_CURRRENT
+# define CV_VERSION_CURRRENT CV_VERSION_INT(CV_VERSION_MAJOR, CV_VERSION_MINOR, CV_VERSION_REVISION)
+#endif
+
+#if ( CV_VERSION_CURRRENT >= CV_VERSION_INT(4,4,0) )
+  #define HAVE_COLORMAP_DEEPGREEN 1
+#endif
 
 enum COLORMAP {
   COLORMAP_NONE = -1,
@@ -35,7 +46,9 @@ enum COLORMAP {
   COLORMAP_TWILIGHT = cv::COLORMAP_TWILIGHT, //!< ![twilight](pics/colormaps/colorscale_twilight.jpg)
   COLORMAP_TWILIGHT_SHIFTED = cv::COLORMAP_TWILIGHT_SHIFTED, //!< ![twilight shifted](pics/colormaps/colorscale_twilight_shifted.jpg)
   COLORMAP_TURBO = cv::COLORMAP_TURBO, //!< ![turbo](pics/colormaps/colorscale_turbo.jpg)
+#if HAVE_COLORMAP_DEEPGREEN
   COLORMAP_DEEPGREEN = cv::COLORMAP_DEEPGREEN, //!< ![deepgreen](pics/colormaps/colorscale_deepgreen.jpg)
+#endif // HAVE_COLORMAP_DEEPGREEN
 };
 
 bool apply_colormap(cv::InputArray src,

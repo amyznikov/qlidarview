@@ -34,7 +34,9 @@ const c_enum_member * members_of<COLORMAP>()
       { COLORMAP_TWILIGHT, "TWILIGHT", "" },
       { COLORMAP_TWILIGHT_SHIFTED, "TWILIGHT_SHIFTED", "" },
       { COLORMAP_TURBO, "TURBO", "" },
+#if HAVE_COLORMAP_DEEPGREEN
       { COLORMAP_DEEPGREEN, "DEEPGREEN", "" },
+#endif // HAVE_COLORMAP_DEEPGREEN
       { COLORMAP_NONE, nullptr, nullptr },
   };
 
