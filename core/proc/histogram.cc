@@ -184,7 +184,7 @@ static bool create_histogram__(cv::InputArray _src, cv::Mat1f & H,
     for( int y = 0; y < src.rows; ++y ) {
       for( int x = 0; x < src.cols; ++x ) {
         for( int c = 0; c < cn; ++c ) {
-          s[cn] = src[y][x][c];
+          s[c] = src[y][x][c];
         }
         builder.add_pixel(s);
       }
@@ -198,7 +198,7 @@ static bool create_histogram__(cv::InputArray _src, cv::Mat1f & H,
       for( int x = 0; x < src.cols; ++x ) {
         if( mask[y][x] ) {
           for( int c = 0; c < cn; ++c ) {
-            s[cn] = src[y][x][c];
+            s[c] = src[y][x][c];
           }
           builder.add_pixel(s);
         }
