@@ -4,7 +4,7 @@
  *  Created on September 5, 2019
  *      Author: amyznikov
  */
-#include <opencv2/core/ocl.hpp>
+//#include <opencv2/core/ocl.hpp>
 #include "MainWindow.h"
 #include <core/debug.h>
 
@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 {
   // My OpenCV build has problems with OCL.
   // Comment out this line if you want to allow OCL in OpenCV
-  cv::ocl::setUseOpenCL(false);
+  // cv::ocl::setUseOpenCL(false);
 
 
   QApplication app(argc, argv);
