@@ -18,9 +18,9 @@ const c_enum_member* members_of<c_zlidar_id>()
 {
   static constexpr c_enum_member members[] = {
       { c_zlidar_id_any, "any" },
-      { c_zlidar_lidar_id_vlp16_1, "vlp16-1" },
-      { c_zlidar_lidar_id_vlp16_2, "vlp16-2" },
-      { c_zlidar_lidar_id_vls128, "vls128" },
+      { c_zlidar_id_vlp16_1, "vlp16-1" },
+      { c_zlidar_id_vlp16_2, "vlp16-2" },
+      { c_zlidar_id_vls128, "vls128" },
       { c_zlidar_id_any, nullptr },
   };
 

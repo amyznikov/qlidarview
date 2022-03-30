@@ -89,9 +89,9 @@ struct c_sll2_header {
 
 enum c_zlidar_id {
   c_zlidar_id_any = -1,
-  c_zlidar_lidar_id_vlp16_1 = (56 + (184<<8) + (8 << 16)),
-  c_zlidar_lidar_id_vlp16_2 = (56 + (198<<8) + (8 << 16)),
-  c_zlidar_lidar_id_vls128 = (69 + (106<<8) + (8 << 16)),
+  c_zlidar_id_vlp16_1 = (56 + (184<<8) + (8 << 16)),
+  c_zlidar_id_vlp16_2 = (56 + (198<<8) + (8 << 16)),
+  c_zlidar_id_vls128 = (69 + (106<<8) + (8 << 16)),
 };
 
 struct c_dltuser1_header {
