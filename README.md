@@ -2,6 +2,7 @@
 
 Simple LiDAR .pcap file viewer based on libQGLViewer.
 
+![Screenshot.png](./Screenshot.png)
 
 This is experimental code for parsing and visualization of LiDAR .pcap files.
 
@@ -37,6 +38,3 @@ The build dependencies are
 	libqglviewer (http://libqglviewer.com)
 
 
-# Screenshot
-
-![Screenshot.png](./Screenshot.png)
