@@ -23,6 +23,7 @@ DLT_LINUX_SLL=113 (Linux cooked sockets) and DLT_LINUX_SLL2=276 (Linux cooked so
 
 The build dependencies are 
 
+	pcap
 	tinyxml2
 	tbb 
 	libtiff 
