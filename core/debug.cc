@@ -361,7 +361,7 @@ void cf_plog(int pri, const char * file, const char * func, int line, const char
       if ( ftell(fplog) > 10 * 1024 * 1024 ) {
         fclose(fplog);
         if ( !(fplog = fopen(logfilename.c_str(), "w")) ) {
-          fprintf(stderr, "FATAL ERROR in cf_plog(): fopen(logfilename=%s, 'w') fails: %s\n", logfilename, strerror(errno));
+          fprintf(stderr, "FATAL ERROR in cf_plog(): fopen(logfilename=%s, 'w') fails: %s\n", logfilename.c_str(), strerror(errno));
           fplog = stderr;
         }
         else {
