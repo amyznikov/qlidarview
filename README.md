@@ -20,6 +20,11 @@ The default calibration parameters hardcoded into application are collected from
 The datalink types curretly supported are only DLT_NULL=0 (BSD loopback encapsulation), DLT_EN10MB=1 (Ethernet (10Mb)),
 DLT_LINUX_SLL=113 (Linux cooked sockets) and DLT_LINUX_SLL2=276 (Linux cooked sockets v2).
 
+The example of tcpdump command line to capture lidar data and write into pcap file :
+ 
+ 
+   $ tcpdump -vv -i any -u "src 192.168.2.201 and udp and port 2368" -w output.pcap
+
 
 The build dependencies are 
 
